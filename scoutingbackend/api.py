@@ -38,3 +38,7 @@ def submit_match_response():
     c = db.get_db()
     c.execute(f"INSERT INTO {event} (qual, teamNumber, points, rankingPoints) VALUES (?, ?, ?, ?)", (qual, team_number, points, ranking_points))
     return Response(f"successfully added response (qual {qual} team {team_number})", 200)
+
+@bp.route('/match/', methods=('POST', 'GET'))
+def match():
+    pass

@@ -6,8 +6,20 @@ EVENT_CHARGEDUP = """
 CREATE TABLE IF NOT EXISTS {event} (
     qual TEXT NOT NULL,
     teamNumber INTEGER NOT NULL,
-    points INTEGER,
-    rankingPoints INTEGER,
+    autoConeAttempt INTEGER,
+    autoConeLow INTEGER,
+    autoConeMid INTEGER,
+    autoConeHigh INTEGER,
+    autoMobility INTEGER,
+    teleopConeAttempt INTEGER,
+    teleopConeLow INTEGER,
+    teleopConeMid INTEGER,
+    teleopCodeHigh INTEGER,
+    endgameDock INTEGER,
+    endgameEngage INTEGER,
+    driverRating INTEGER,
+    driverFouls INTEGER,
+
     PRIMARY KEY (qual, teamNumber)
 );
 """
