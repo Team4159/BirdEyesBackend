@@ -6,7 +6,7 @@ EVENT_CHARGEDUP = """
 CREATE TABLE IF NOT EXISTS {event}_match (
     qual TEXT NOT NULL,
     teamNumber INTEGER NOT NULL,
-    
+
     autoConeAttempt INTEGER,
     autoConeLow INTEGER,
     autoConeMid INTEGER,
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS {event}_match (
     PRIMARY KEY (qual, teamNumber)
 );
 CREATE TABLE IF NOT EXISTS {event}_pit (
-    teamNumber PRIMARY KEY INTEGER NOT NULL,
+    teamNumber INTEGER PRIMARY KEY NOT NULL,
     response TEXT
 );
 """
