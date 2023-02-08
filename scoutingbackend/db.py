@@ -3,9 +3,10 @@ import click
 from flask import current_app, g
 
 EVENT_CHARGEDUP = """
-CREATE TABLE IF NOT EXISTS {event} (
+CREATE TABLE IF NOT EXISTS {event}_match (
     qual TEXT NOT NULL,
     teamNumber INTEGER NOT NULL,
+    
     autoConeAttempt INTEGER,
     autoConeLow INTEGER,
     autoConeMid INTEGER,
@@ -21,6 +22,10 @@ CREATE TABLE IF NOT EXISTS {event} (
     driverFouls INTEGER,
 
     PRIMARY KEY (qual, teamNumber)
+);
+CREATE TABLE IF NOT EXISTS {event}_pit (
+    teamNumber PRIMARY KEY INTEGER NOT NULL,
+    response TEXT
 );
 """
 

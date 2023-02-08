@@ -39,6 +39,34 @@ def submit_match_response():
     c.execute(f"INSERT INTO {event} (qual, teamNumber, points, rankingPoints) VALUES (?, ?, ?, ?)", (qual, team_number, points, ranking_points))
     return Response(f"successfully added response (qual {qual} team {team_number})", 200)
 
-@bp.route('/match/', methods=('POST', 'GET'))
-def match():
-    pass
+@bp.route('/<event>/match/', methods=('POST', 'GET'))
+def match(event=None):
+    if event is None:
+        return abort(500)
+    if request.method == "POST":
+        j = request.get_json()
+        c = db.get_db()
+        c.execute(f"INSERT INTO {event}_match (*) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+            j['qual'], j['teamNumber'],
+            j['auto']['coneAttempted'], j['auto']['coneLow'], j['auto']['coneMid'], j['auto']['coneHig'], int(j['auto']['mobility']),
+            j['teleop']['coneAttemped'], j['teleop']['coneLow'], j['teleop']['coneMid'], j['teleop']['coneHig'],
+            int(j['endgame']['docked']), int(j['endgame']['engaged']),
+            j['driver']['rating'], j['driver']['fouls']
+        ))
+        c.commit()
+    elif request.method == "GET":
+        ij = request.get_json()
+        j = {
+            'auto':{},
+            'teleop':{},
+            'endgame':{},
+            'driver':{}
+        }
+        c = db.get_db()
+        vals = c.execute(f"SELECT * FROM {event}_match WHERE qual=?, teamNumber=?", (ij['qual'], ij['teamNumber'])).fetchone()
+        _, _, j['auto']['coneAttempted'], j['auto']['coneLow'], j['auto']['coneMid'], j['auto']['coneHig'], j['auto']['mobility'], \
+            j['teleop']['coneAttemped'], j['teleop']['coneLow'], j['teleop']['coneMid'], j['teleop']['coneHig'], \
+            j['endgame']['docked'], j['endgame']['engaged'], \
+            j['driver']['rating'], j['driver']['fouls'] = vals
+        print(vals)
+        return vals
