@@ -1,5 +1,6 @@
 import functools
 import sqlite3
+from flask_cors import CORS, cross_origin
 
 from flask import (
     Blueprint, flash, g, redirect, render_template, request, session, url_for, abort, Response
@@ -9,30 +10,37 @@ from . import db
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
-SITE_SCHEME = {
-    '2023': '''{
-          "auto": {
-            "coneAttempted": "counter",
-            "coneLow": "counter",
-            "coneMid": "counter",
-            "coneHig": "counter",
-            "mobility":"toggle"
-          },
-          "teleop": {
-            "coneAttempted": "counter",
-            "coneLow": "counter",
-            "coneMid": "counter",
-            "coneHig": "counter"
-          },
-          "endgame": {
-            "docked": "toggle",
-            "engaged":"toggle"
-          },
-          "driver": {
-            "rating": "slider",
-            "fouls": "counter"
-          }
-        }'''
+PIT_SCHEME = {
+    '2023': {
+        "dfe": "text",
+        "AMONG US": "text",
+    }
+}
+
+MATCH_SCHEME = {
+    '2023': {
+        "auto": {
+        "coneAttempted": "counter",
+        "coneLow": "counter",
+        "coneMid": "counter",
+        "coneHig": "counter",
+        "mobility":"toggle"
+        },
+        "teleop": {
+        "coneAttempted": "counter",
+        "coneLow": "counter",
+        "coneMid": "counter",
+        "coneHig": "counter"
+        },
+        "endgame": {
+        "docked": "toggle",
+        "engaged":"toggle"
+        },
+        "driver": {
+        "rating": "slider",
+        "fouls": "counter"
+        }
+    }
 }
 
 DB_SCHEME = {
@@ -64,10 +72,12 @@ DB_SCHEME = {
 }
 
 @bp.route('/test', methods=("GET",))
+@cross_origin()
 def test():
     return f"its flasking time {request.args.get('argument', '')}"
 
 @bp.route('/nottest', methods=("GET",))
+@cross_origin()
 def nottest():
     return "idk"
 
@@ -89,6 +99,7 @@ def format_event(event_id: str):
     return f"frc{event_id}"
 
 @bp.route('/<event>/create', methods=("POST",))
+@cross_origin()
 def create(event):
     event = format_event(event)
     if not request.args.get('year', None):
@@ -98,14 +109,24 @@ def create(event):
     c.commit()
     return Response("table created/table already exists", 200)
 
-@bp.route('/<event>/schema', methods=("GET",))
-def eventschema(event):
-    event = format_event(event)
-    if event not in SITE_SCHEME:
+@bp.route('/<season>/matchschema/', methods=("GET",))
+@cross_origin()
+def eventmatchschema(season):
+    if season not in MATCH_SCHEME:
         return abort(404)
-    return SITE_SCHEME[event]
+    print(MATCH_SCHEME[season])
+    return MATCH_SCHEME[season]
+
+@bp.route('/<season>/pitschema/', methods=("GET",))
+@cross_origin()
+def eventpitschema(season):
+    if season not in PIT_SCHEME:
+        return abort(404)
+    print(PIT_SCHEME[season])
+    return PIT_SCHEME[season]
 
 @bp.route('/<event>/pit/', methods=('POST', 'GET'))
+@cross_origin()
 def pit(event):
     event = format_event(event)
     if request.method == "POST":
@@ -131,6 +152,7 @@ def pit(event):
         return j
 
 @bp.route('/<event>/match/', methods=('POST', 'GET'))
+@cross_origin()
 def match(event):
     event = format_event(event)
     if request.method == "POST":
