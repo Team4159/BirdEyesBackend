@@ -1,4 +1,5 @@
 import functools
+import sqlite3
 
 from flask import (
     Blueprint, flash, g, redirect, render_template, request, session, url_for, abort, Response
@@ -8,7 +9,7 @@ from . import db
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
-SCHEMAS = {
+SITE_SCHEME = {
     '2023': '''{
           "auto": {
             "coneAttempted": "counter",
@@ -34,6 +35,34 @@ SCHEMAS = {
         }'''
 }
 
+DB_SCHEME = {
+    "2023": """CREATE TABLE IF NOT EXISTS {event}_match (
+        qual TEXT NOT NULL,
+        teamNumber INTEGER NOT NULL,
+
+        autoConeAttempt INTEGER,
+        autoConeLow INTEGER,
+        autoConeMid INTEGER,
+        autoConeHigh INTEGER,
+        autoMobility INTEGER,
+        teleopConeAttempt INTEGER,
+        teleopConeLow INTEGER,
+        teleopConeMid INTEGER,
+        teleopCodeHigh INTEGER,
+        endgameDock INTEGER,
+        endgameEngage INTEGER,
+        driverRating INTEGER,
+        driverFouls INTEGER,
+
+        PRIMARY KEY (qual, teamNumber)
+    );
+    CREATE TABLE IF NOT EXISTS {event}_pit (
+        teamNumber INTEGER PRIMARY KEY NOT NULL,
+        response TEXT
+    );
+    """
+}
+
 @bp.route('/test', methods=("GET",))
 def test():
     return f"its flasking time {request.args.get('argument', '')}"
@@ -41,16 +70,6 @@ def test():
 @bp.route('/nottest', methods=("GET",))
 def nottest():
     return "idk"
-
-
-@bp.route('/createChargedUpEvent', methods=("POST",))
-def ChargedUpEventCreate():
-    event = request.args.get("eventName", None)
-    if event is None:
-        return abort(400)
-    c = db.get_db()
-    db.create_chargedup_event("_"+event)
-    return Response("table created", 200)
 
 '''@bp.route('/submitMatchResponse', methods = ("POST",))
 def submit_match_response():
@@ -66,30 +85,73 @@ def submit_match_response():
     return Response(f"successfully added response (qual {qual} team {team_number})", 200)
 '''
 
-@bp.route('/<event>/', methods=("GET",))
-def eventschema(event=None):
-    if event not in SCHEMAS:
-        return abort(404)
-    return SCHEMAS[event]
+def format_event(event_id: str):
+    return f"frc{event_id}"
 
-@bp.route('/<event>/match/', methods=('POST', 'GET'))
-def match(event=None):
-    if event is None:
-        return abort(500)
+@bp.route('/<event>/create', methods=("POST",))
+def create(event):
+    event = format_event(event)
+    if not request.args.get('year', None):
+        return abort(400)
+    c = db.get_db()
+    c.executescript(DB_SCHEME[request.args.get('year')].format(event=event))
+    c.commit()
+    return Response("table created/table already exists", 200)
+
+@bp.route('/<event>/schema', methods=("GET",))
+def eventschema(event):
+    event = format_event(event)
+    if event not in SITE_SCHEME:
+        return abort(404)
+    return SITE_SCHEME[event]
+
+@bp.route('/<event>/pit/', methods=('POST', 'GET'))
+def pit(event):
+    event = format_event(event)
     if request.method == "POST":
         j = request.get_json()
         c = db.get_db()
-        c.execute(f"INSERT INTO _{event}_match VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
-            j['qual'], j['teamNumber'],
-            j['auto']['coneAttempted'], j['auto']['coneLow'], j['auto']['coneMid'], j['auto']['coneHig'], int(j['auto']['mobility']),
-            j['teleop']['coneAttempted'], j['teleop']['coneLow'], j['teleop']['coneMid'], j['teleop']['coneHig'],
-            int(j['endgame']['docked']), int(j['endgame']['engaged']),
-            j['driver']['rating'], j['driver']['fouls']
-        ))
+        try:
+            c.execute(f"INSERT INTO {event}_pit (teamNumber, response) VALUES (?, ?)", (j['teamNumber'], j['response']))
+        except sqlite3.OperationalError:
+            return abort(404)
         c.commit()
-        return Response(f"successfully added response (qual {j['qual']} team {j['teamNumber']})", 200)
+        return Response(f"successfully added pit response (qual {j['qual']} team {j['teamNumber']})", 200)
+    elif request.method == "GET":
+        if not request.args.get("teamNumber", None):
+            return abort(400)
+        j = {}
+        c = db.get_db()
+        try:
+            vals = c.execute(f'SELECT * FROM {event}_pit WHERE teamNumber=?', (request.args.get('teamNumber'),)).fetchone()
+        except sqlite3.OperationalError:
+            return abort(404)
+        j['teamNumber'], j['response'] = vals
+        print(j)
+        return j
+
+@bp.route('/<event>/match/', methods=('POST', 'GET'))
+def match(event):
+    event = format_event(event)
+    if request.method == "POST":
+        j = request.get_json()
+        c = db.get_db()
+        try:
+            c.execute(f"INSERT INTO {event}_match VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+                j['qual'], j['teamNumber'],
+                j['auto']['coneAttempted'], j['auto']['coneLow'], j['auto']['coneMid'], j['auto']['coneHig'], int(j['auto']['mobility']),
+                j['teleop']['coneAttempted'], j['teleop']['coneLow'], j['teleop']['coneMid'], j['teleop']['coneHig'],
+                int(j['endgame']['docked']), int(j['endgame']['engaged']),
+                j['driver']['rating'], j['driver']['fouls']
+            ))
+        except sqlite3.OperationalError:
+            return abort(404)
+        c.commit()
+        return Response(f"successfully added match response (qual {j['qual']} team {j['teamNumber']})", 200)
 
     elif request.method == "GET":
+        if not (request.args.get('qual', None) and request.args.get('teamNumber', None)):
+            return abort(400)
         j = {
             'auto':{},
             'teleop':{},
@@ -97,7 +159,10 @@ def match(event=None):
             'driver':{}
         }
         c = db.get_db()
-        vals = c.execute(f"SELECT * FROM _{event}_match WHERE qual=? AND teamNumber=?", (request.args.get('qual'), request.args.get('teamNumber'))).fetchone()
+        try:
+            vals = c.execute(f"SELECT * FROM {event}_match WHERE qual=? AND teamNumber=?", (request.args.get('qual'), request.args.get('teamNumber'))).fetchone()
+        except sqlite3.OperationalError:
+            return abort(404)
         if not vals:
             return abort(404)
         j['qual'], j['teamNumber'], j['auto']['coneAttempted'], j['auto']['coneLow'], j['auto']['coneMid'], j['auto']['coneHig'], j['auto']['mobility'], \

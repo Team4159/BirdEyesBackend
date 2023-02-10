@@ -2,39 +2,6 @@ import sqlite3
 import click
 from flask import current_app, g
 
-EVENT_CHARGEDUP = """
-CREATE TABLE IF NOT EXISTS {event}_match (
-    qual TEXT NOT NULL,
-    teamNumber INTEGER NOT NULL,
-
-    autoConeAttempt INTEGER,
-    autoConeLow INTEGER,
-    autoConeMid INTEGER,
-    autoConeHigh INTEGER,
-    autoMobility INTEGER,
-    teleopConeAttempt INTEGER,
-    teleopConeLow INTEGER,
-    teleopConeMid INTEGER,
-    teleopCodeHigh INTEGER,
-    endgameDock INTEGER,
-    endgameEngage INTEGER,
-    driverRating INTEGER,
-    driverFouls INTEGER,
-
-    PRIMARY KEY (qual, teamNumber)
-);
-CREATE TABLE IF NOT EXISTS {event}_pit (
-    teamNumber INTEGER PRIMARY KEY NOT NULL,
-    response TEXT
-);
-"""
-
-def create_chargedup_event(event: str):
-    db = get_db()
-    c=db.cursor()
-    c.executescript(EVENT_CHARGEDUP.format(event=event))
-    db.commit()
-
 def get_db():
     if 'db' not in g:
         g.db = sqlite3.connect(
