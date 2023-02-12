@@ -39,7 +39,7 @@ MATCH_SCHEME = {
 }
 
 DB_SCHEME = {
-    "2023": f"""CREATE TABLE IF NOT EXISTS {{event}}_match (
+    "2023": """CREATE TABLE IF NOT EXISTS {event}_match (
         qual TEXT NOT NULL,
         teamNumber INTEGER NOT NULL,
 
@@ -59,9 +59,9 @@ DB_SCHEME = {
 
         PRIMARY KEY (qual, teamNumber)
     );
-    CREATE TABLE IF NOT EXISTS {{event}}_pit (
+    CREATE TABLE IF NOT EXISTS {event}_pit (
         teamNumber INTEGER PRIMARY KEY NOT NULL,
-        {" TEXT,".join(PIT_SCHEME['2023'].values())+" TEXT"}
+        """+(' TEXT,\n'.join(PIT_SCHEME['2023'].values())+" TEXT")+"""
     );
     """
 }

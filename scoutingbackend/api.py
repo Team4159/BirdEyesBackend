@@ -39,22 +39,19 @@ def pit(season, event):
     if request.method == "POST":
         j = request.get_json(force=True)
         try:
-            c.execute(f"INSERT INTO {eventCode}_pit ( %s ) VALUES ( %s )" % (', '.join(PIT_SCHEME[season].values())+', teamNumber', ', '.join(['%s'] * len(j))), list(j.values()))
-        except sqlite3.OperationalError:
-            return abort(404)
+            c.execute(f"INSERT INTO {eventCode}_pit ( {', '.join(PIT_SCHEME[season].values())+', teamNumber'} ) VALUES ( {', '.join(['?'] * len(j))} )", list(j.values()))
+        except sqlite3.OperationalError as e:
+            return abort(Response(e, 500))
         c.commit()
         return Response(f"Successfully Added Pit Response! ({j['teamNumber']})", 200)
     elif request.method == "GET":
-        j = {}
         try:
-            vals = c.execute(f'SELECT * FROM {eventCode}_pit' + (" WHERE teamNumber="+request.args.get('teamNumber') if "teamNumber" in request.args else "")).fetchone()
-        except sqlite3.OperationalError:
-            return abort(Response("SQL Operational Error", 404))
-        if vals == None:
+            vals = c.execute(f'SELECT * FROM {eventCode}_pit' + (" WHERE teamNumber="+request.args.get('teamNumber') if "teamNumber" in request.args else ""))
+        except sqlite3.OperationalError as e:
+            return abort(Response(e, 404))
+        if (vals == None):
             return abort(404)
-        j['teamNumber'], j['response'] = vals
-        print(j)
-        return j
+        return [dict(v) for v in vals]
 
 @bp.route('/<event>/match/', methods=('POST', 'GET'))
 @cross_origin()
@@ -98,3 +95,7 @@ def match(event):
             j['driver']['rating'], j['driver']['fouls'] = vals
         print(j)
         return j
+
+@bp.route('/currentEvents/', methods=('GET',))
+def currentEvents():
+    return {"casf": "San Francisco Regional", "casv": "Silicon Valley Regional", "cada": "Sacramento Regional", "cmptx": "FIRST Championship - Texas"}
