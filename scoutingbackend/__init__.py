@@ -1,8 +1,10 @@
 import os
 
 from flask import Flask
-from . import api, db
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
+
+from . import api
+
 
 def create_app(test_config=None):
     # create and configure the app
@@ -28,11 +30,4 @@ def create_app(test_config=None):
         pass
     
     app.register_blueprint(api.bp)
-
-
-    # a simple page that says hello
-    @app.route('/')
-    def hello():
-        return 'go cardinals!'
-
     return app

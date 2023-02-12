@@ -1,151 +1,56 @@
-import functools
 import sqlite3
-from flask_cors import CORS, cross_origin
 
-from flask import (
-    Blueprint, flash, g, redirect, render_template, request, session, url_for, abort, Response
-)
+from flask import Blueprint, Response, abort, request
+from flask_cors import cross_origin
+
+from scoutingbackend.schemes import *
 
 from . import db
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
-PIT_SCHEME = {
-    '2023': {
-        "dfe": "text",
-        "AMONG US": "text",
-    }
-}
+def format_event(season: int, event_id: str):
+    return f"frc{season}{event_id}"
 
-MATCH_SCHEME = {
-    '2023': {
-        "auto": {
-        "coneAttempted": "counter",
-        "coneLow": "counter",
-        "coneMid": "counter",
-        "coneHig": "counter",
-        "mobility":"toggle"
-        },
-        "teleop": {
-        "coneAttempted": "counter",
-        "coneLow": "counter",
-        "coneMid": "counter",
-        "coneHig": "counter"
-        },
-        "endgame": {
-        "docked": "toggle",
-        "engaged":"toggle"
-        },
-        "driver": {
-        "rating": "slider",
-        "fouls": "counter"
-        }
-    }
-}
-
-DB_SCHEME = {
-    "2023": """CREATE TABLE IF NOT EXISTS {event}_match (
-        qual TEXT NOT NULL,
-        teamNumber INTEGER NOT NULL,
-
-        autoConeAttempt INTEGER,
-        autoConeLow INTEGER,
-        autoConeMid INTEGER,
-        autoConeHigh INTEGER,
-        autoMobility INTEGER,
-        teleopConeAttempt INTEGER,
-        teleopConeLow INTEGER,
-        teleopConeMid INTEGER,
-        teleopCodeHigh INTEGER,
-        endgameDock INTEGER,
-        endgameEngage INTEGER,
-        driverRating INTEGER,
-        driverFouls INTEGER,
-
-        PRIMARY KEY (qual, teamNumber)
-    );
-    CREATE TABLE IF NOT EXISTS {event}_pit (
-        teamNumber INTEGER PRIMARY KEY NOT NULL,
-        response TEXT
-    );
-    """
-}
-
-@bp.route('/test', methods=("GET",))
-@cross_origin()
-def test():
-    return f"its flasking time {request.args.get('argument', '')}"
-
-@bp.route('/nottest', methods=("GET",))
-@cross_origin()
-def nottest():
-    return "idk"
-
-'''@bp.route('/submitMatchResponse', methods = ("POST",))
-def submit_match_response():
-    resp = request.get_json()
-    event: str = resp['event']
-    qual: str = resp['qual']
-    team_number: int = resp['teamNumber']
-    points: int = resp['points']
-    ranking_points = resp['rankingPoints']
-
+@bp.route('/<season>/createEvent', methods=("PUT",))
+def createEvent(season):
+    if season not in MATCH_SCHEME or season not in PIT_SCHEME or request.data == None:
+        return abort(Response("Unrecognized Season / Bad Data", 400))
     c = db.get_db()
-    c.execute(f"INSERT INTO {event} (qual, teamNumber, points, rankingPoints) VALUES (?, ?, ?, ?)", (qual, team_number, points, ranking_points))
-    return Response(f"successfully added response (qual {qual} team {team_number})", 200)
-'''
-
-def format_event(event_id: str):
-    return f"frc{event_id}"
-
-@bp.route('/<event>/create', methods=("POST",))
-@cross_origin()
-def create(event):
-    event = format_event(event)
-    if not request.args.get('year', None):
-        return abort(400)
-    c = db.get_db()
-    c.executescript(DB_SCHEME[request.args.get('year')].format(event=event))
+    c.executescript(DB_SCHEME[season].format(event=format_event(season, request.data.decode())))
     c.commit()
-    return Response("table created/table already exists", 200)
+    return Response("Table Created / Already Exists", 200)
 
 @bp.route('/<season>/matchschema/', methods=("GET",))
 @cross_origin()
 def eventmatchschema(season):
-    if season not in MATCH_SCHEME:
-        return abort(404)
-    print(MATCH_SCHEME[season])
-    return MATCH_SCHEME[season]
+    return MATCH_SCHEME[season] if season in MATCH_SCHEME else abort(404)
 
 @bp.route('/<season>/pitschema/', methods=("GET",))
 @cross_origin()
 def eventpitschema(season):
-    if season not in PIT_SCHEME:
-        return abort(404)
-    print(PIT_SCHEME[season])
-    return PIT_SCHEME[season]
+    return PIT_SCHEME[season] if season in PIT_SCHEME else abort(404)
 
-@bp.route('/<event>/pit/', methods=('POST', 'GET'))
+@bp.route('/<season>/<event>/pit/', methods=('POST', 'GET',))
 @cross_origin()
-def pit(event):
-    event = format_event(event)
+def pit(season, event):
+    eventCode = format_event(season, event)
+    c = db.get_db()
     if request.method == "POST":
-        j = request.get_json()
-        c = db.get_db()
+        j = request.get_json(force=True)
         try:
-            c.execute(f"INSERT INTO {event}_pit (teamNumber, response) VALUES (?, ?)", (j['teamNumber'], j['response']))
+            c.execute(f"INSERT INTO {eventCode}_pit ( %s ) VALUES ( %s )" % (', '.join(PIT_SCHEME[season].values())+', teamNumber', ', '.join(['%s'] * len(j))), list(j.values()))
         except sqlite3.OperationalError:
             return abort(404)
         c.commit()
-        return Response(f"successfully added pit response (qual {j['qual']} team {j['teamNumber']})", 200)
+        return Response(f"Successfully Added Pit Response! ({j['teamNumber']})", 200)
     elif request.method == "GET":
-        if not request.args.get("teamNumber", None):
-            return abort(400)
         j = {}
-        c = db.get_db()
         try:
-            vals = c.execute(f'SELECT * FROM {event}_pit WHERE teamNumber=?', (request.args.get('teamNumber'),)).fetchone()
+            vals = c.execute(f'SELECT * FROM {eventCode}_pit' + (" WHERE teamNumber="+request.args.get('teamNumber') if "teamNumber" in request.args else "")).fetchone()
         except sqlite3.OperationalError:
+            return abort(Response("SQL Operational Error", 404))
+        if vals == None:
             return abort(404)
         j['teamNumber'], j['response'] = vals
         print(j)
