@@ -2,7 +2,7 @@ import sqlite3
 
 from flask import Blueprint, Response, abort, request
 from flask_cors import cross_origin
-
+import json
 from scoutingbackend.schemes import *
 
 from . import db
@@ -26,7 +26,7 @@ def createEvent(season):
 @bp.route('/<season>/matchschema/', methods=("GET",))
 @cross_origin()
 def eventmatchschema(season):
-    return MATCH_SCHEME[season] if season in MATCH_SCHEME else abort(404)
+    return Response(json.dumps(MATCH_SCHEME[season], sort_keys=False), 200, content_type='application/json') if season in MATCH_SCHEME else abort(404)
 
 @bp.route('/<season>/pitschema/', methods=("GET",))
 @cross_origin()
