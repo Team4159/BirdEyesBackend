@@ -1,14 +1,14 @@
-import functools
 import sqlite3
+
+from flask import (Blueprint, Response, abort, flash, g, redirect,
+                   render_template, request, session, url_for)
 from flask_cors import CORS, cross_origin
 
-from flask import (
-    Blueprint, flash, g, redirect, render_template, request, session, url_for, abort, Response
-)
-
 from . import db
+from . import bluealliance
 
 bp = Blueprint('api', __name__, url_prefix='/api')
+bp.register_blueprint(bluealliance.bp)
 
 PIT_SCHEME = {
     '2023': {
@@ -70,30 +70,6 @@ DB_SCHEME = {
     );
     """
 }
-
-@bp.route('/test', methods=("GET",))
-@cross_origin()
-def test():
-    return f"its flasking time {request.args.get('argument', '')}"
-
-@bp.route('/nottest', methods=("GET",))
-@cross_origin()
-def nottest():
-    return "idk"
-
-'''@bp.route('/submitMatchResponse', methods = ("POST",))
-def submit_match_response():
-    resp = request.get_json()
-    event: str = resp['event']
-    qual: str = resp['qual']
-    team_number: int = resp['teamNumber']
-    points: int = resp['points']
-    ranking_points = resp['rankingPoints']
-
-    c = db.get_db()
-    c.execute(f"INSERT INTO {event} (qual, teamNumber, points, rankingPoints) VALUES (?, ?, ?, ?)", (qual, team_number, points, ranking_points))
-    return Response(f"successfully added response (qual {qual} team {team_number})", 200)
-'''
 
 def format_event(event_id: str):
     return f"frc{event_id}"
