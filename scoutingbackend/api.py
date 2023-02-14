@@ -1,3 +1,4 @@
+import json
 import sqlite3
 
 from flask import Blueprint, Response, abort, request
@@ -24,8 +25,8 @@ def create_event(season):
 
 @bp.route('/<season>/matchschema/', methods=("GET",))
 @cross_origin()
-def match_schema(season):
-    return MATCH_SCHEME[season] if season in MATCH_SCHEME else abort(404)
+def eventmatchschema(season):
+    return Response(json.dumps(MATCH_SCHEME[season], sort_keys=False), 200, content_type='application/json') if season in MATCH_SCHEME else abort(404)
 
 @bp.route('/<season>/pitschema/', methods=("GET",))
 @cross_origin()
