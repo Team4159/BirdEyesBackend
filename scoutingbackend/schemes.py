@@ -1,3 +1,6 @@
+import os
+
+
 PIT_SCHEME = {
     '2023': {
         "Which drivetrain do you use?": "drivetrain",
@@ -15,53 +18,49 @@ PIT_SCHEME = {
 MATCH_SCHEME = {
     '2023': {
         "auto": {
-        "coneAttempted": "counter",
-        "coneLow": "counter",
-        "coneMid": "counter",
-        "coneHig": "counter",
-        "mobility":"toggle"
+            "coneAttempted": "counter",
+            "coneLow": "counter",
+            "coneMid": "counter",
+            "coneHig": "counter",
+            "mobility":"toggle"
         },
         "teleop": {
-        "coneAttempted": "counter",
-        "coneLow": "counter",
-        "coneMid": "counter",
-        "coneHig": "counter"
+            "coneAttempted": "counter",
+            "coneLow": "counter",
+            "coneMid": "counter",
+            "coneHig": "counter"
         },
         "endgame": {
-        "docked": "toggle",
-        "engaged":"toggle"
+            "docked": "toggle",
+            "engaged":"toggle"
         },
         "driver": {
-        "rating": "slider",
-        "fouls": "counter"
+            "rating": "slider",
+            "fouls": "counter"
         }
     }
 }
 
+MATCH_SCHEME_DATATYPES = {
+    "counter": "INTEGER", "toggle": "BOOLEAN", "slider": "INTEGER", "text": "TEXT"
+}
+
+s = ""
+for k, v in MATCH_SCHEME[os.getenv('SEASON')].items():
+    for k1, v1 in v.items():
+        s += f"{k+k1[0].upper()+k1[1:]} {MATCH_SCHEME_DATATYPES[v1]},\n"
+
 DB_SCHEME = {
-    "2023": """CREATE TABLE IF NOT EXISTS {event}_match (
-        qual TEXT NOT NULL,
+    os.getenv('SEASON'): """CREATE TABLE IF NOT EXISTS {event}_match (
+        match TEXT NOT NULL,
         teamNumber INTEGER NOT NULL,
 
-        autoConeAttempt INTEGER,
-        autoConeLow INTEGER,
-        autoConeMid INTEGER,
-        autoConeHigh INTEGER,
-        autoMobility INTEGER,
-        teleopConeAttempt INTEGER,
-        teleopConeLow INTEGER,
-        teleopConeMid INTEGER,
-        teleopCodeHigh INTEGER,
-        endgameDock INTEGER,
-        endgameEngage INTEGER,
-        driverRating INTEGER,
-        driverFouls INTEGER,
-
-        PRIMARY KEY (qual, teamNumber)
+        """+s+"""
+        PRIMARY KEY (match, teamNumber)
     );
     CREATE TABLE IF NOT EXISTS {event}_pit (
         teamNumber INTEGER PRIMARY KEY NOT NULL,
-        """+(' TEXT,\n'.join(PIT_SCHEME['2023'].values())+" TEXT")+"""
+        """+(' TEXT,\n'.join(PIT_SCHEME[os.getenv('SEASON')].values())+" TEXT")+"""
     );
     """
 }

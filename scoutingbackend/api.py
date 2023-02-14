@@ -3,10 +3,9 @@ import sqlite3
 from flask import Blueprint, Response, abort, request
 from flask_cors import cross_origin
 
-from scoutingbackend.schemes import *
+from scoutingbackend.schemes import MATCH_SCHEME, PIT_SCHEME
 
-from . import db
-from . import bluealliance
+from . import bluealliance, db
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 bp.register_blueprint(bluealliance.bp)
@@ -15,26 +14,26 @@ def format_event(season: int, event_id: str):
     return f"frc{season}{event_id}"
 
 @bp.route('/<season>/createEvent', methods=("PUT",))
-def createEvent(season):
+def create_event(season):
     if season not in MATCH_SCHEME or season not in PIT_SCHEME or request.data == None:
         return abort(Response("Unrecognized Season / Bad Data", 400))
     c = db.get_db()
-    c.executescript(DB_SCHEME[season].format(event=format_event(season, request.data.decode())))
+    c.executescript(db.DB_SCHEME[season].format(event=format_event(season, request.data.decode())))
     c.commit()
     return Response("Table Created / Already Exists", 200)
 
 @bp.route('/<season>/matchschema/', methods=("GET",))
 @cross_origin()
-def eventmatchschema(season):
+def match_schema(season):
     return MATCH_SCHEME[season] if season in MATCH_SCHEME else abort(404)
 
 @bp.route('/<season>/pitschema/', methods=("GET",))
 @cross_origin()
-def eventpitschema(season):
+def pit_schema(season):
     return PIT_SCHEME[season] if season in PIT_SCHEME else abort(404)
 
 @bp.route('/<season>/<event>/pit/', methods=('POST', 'GET',))
-@cross_origin()
+@cross_origin(allow_headers=('GET',))
 def pit(season, event):
     eventCode = format_event(season, event)
     c = db.get_db()
@@ -45,59 +44,41 @@ def pit(season, event):
         except sqlite3.OperationalError as e:
             return abort(Response(e, 500))
         c.commit()
-        return Response(f"Successfully Added Pit Response! ({j['teamNumber']})", 200)
+        return Response(f"Successfully Added Pit Response! (#{j['teamNumber']})", 200)
     elif request.method == "GET":
         try:
-            vals = c.execute(f'SELECT * FROM {eventCode}_pit' + (" WHERE teamNumber="+request.args.get('teamNumber') if "teamNumber" in request.args else ""))
+            vals = c.execute(f"SELECT * FROM {eventCode}_pit " + db.generate_selector(request.args))
         except sqlite3.OperationalError as e:
             return abort(Response(e, 404))
-        if (vals == None):
+        if not vals:
             return abort(404)
         return [dict(v) for v in vals]
 
-@bp.route('/<event>/match/', methods=('POST', 'GET'))
-@cross_origin()
-def match(event):
-    event = format_event(event)
+@bp.route('/<season>/<event>/match/', methods=('POST', 'GET',))
+@cross_origin(allow_headers=('GET',))
+def match(season, event):
+    eventCode = format_event(season, event)
+    c = db.get_db()
     if request.method == "POST":
-        j = request.get_json()
-        c = db.get_db()
+        j = request.get_json(force=True)
         try:
-            c.execute(f"INSERT INTO {event}_match VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
-                j['qual'], j['teamNumber'],
-                j['auto']['coneAttempted'], j['auto']['coneLow'], j['auto']['coneMid'], j['auto']['coneHig'], int(j['auto']['mobility']),
-                j['teleop']['coneAttempted'], j['teleop']['coneLow'], j['teleop']['coneMid'], j['teleop']['coneHig'],
-                int(j['endgame']['docked']), int(j['endgame']['engaged']),
-                j['driver']['rating'], j['driver']['fouls']
-            ))
-        except sqlite3.OperationalError:
-            return abort(404)
+            jp = {}
+            for k, v in j["form"].items():
+                for k1, v1 in v.items():
+                    jp[k+k1[0].upper()+k1[1:]] = v1
+            jp["teamNumber"] = j["teamNumber"]
+            jp["match"] = j["match"]
+            
+            c.execute(f"INSERT INTO {eventCode}_match ( {', '.join(jp.keys())} ) VALUES ( {', '.join(['?'] * len(jp))} )", list(jp.values()))
+        except sqlite3.OperationalError as e:
+            return abort(Response(str(e), 404))
         c.commit()
-        return Response(f"successfully added match response (qual {j['qual']} team {j['teamNumber']})", 200)
-
+        return Response(f"Successfully Added Match Response! (#{jp['teamNumber']} @ {jp['match']})", 200)
     elif request.method == "GET":
-        if not (request.args.get('qual', None) and request.args.get('teamNumber', None)):
-            return abort(400)
-        j = {
-            'auto':{},
-            'teleop':{},
-            'endgame':{},
-            'driver':{}
-        }
-        c = db.get_db()
         try:
-            vals = c.execute(f"SELECT * FROM {event}_match WHERE qual=? AND teamNumber=?", (request.args.get('qual'), request.args.get('teamNumber'))).fetchone()
-        except sqlite3.OperationalError:
-            return abort(404)
+            vals = c.execute(f"SELECT * FROM {eventCode}_match "+db.generate_selector(request.args))
+        except sqlite3.OperationalError as e:
+            return abort(Response(str(e), 404))
         if not vals:
             return abort(404)
-        j['qual'], j['teamNumber'], j['auto']['coneAttempted'], j['auto']['coneLow'], j['auto']['coneMid'], j['auto']['coneHig'], j['auto']['mobility'], \
-            j['teleop']['coneAttempted'], j['teleop']['coneLow'], j['teleop']['coneMid'], j['teleop']['coneHig'], \
-            j['endgame']['docked'], j['endgame']['engaged'], \
-            j['driver']['rating'], j['driver']['fouls'] = vals
-        print(j)
-        return j
-
-@bp.route('/currentEvents/', methods=('GET',))
-def currentEvents():
-    return {"casf": "San Francisco Regional", "casv": "Silicon Valley Regional", "cada": "Sacramento Regional", "cmptx": "FIRST Championship - Texas"}
+        return [dict(v) for v in vals]

@@ -1,0 +1,5 @@
+{
+    "SEASON": 2023,
+    "TBA_STATE": "CA",
+    "TBA_KEY": ""
+}
