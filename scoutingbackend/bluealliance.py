@@ -1,8 +1,10 @@
 import os
 from datetime import date, datetime
 
-from flask import Blueprint, abort, request
+from flask import Blueprint, Response, abort, request
 from requests import Session
+
+from scoutingbackend.schemes import format_event
 
 request_session = Session()
 request_session.headers['X-TBA-Auth-Key'] = os.getenv('TBA_KEY')
@@ -15,18 +17,27 @@ def is_valid_event(event: dict, ignore_date=False):
     today = date.today()
     return event['state_prov'] == os.getenv('TBA_STATE') and (ignore_date or start_date <= today <= end_date)
 
-@bp.route('/currentEvents/')
-def current_events():    
-    resp = request_session.get(f"https://www.thebluealliance.com/api/v3/events/{os.getenv('SEASON')}/simple")
+@bp.route('/<season>/', methods=("GET",))
+def current_events(season):    
+    resp = request_session.get(f"https://www.thebluealliance.com/api/v3/events/{season}/simple")
     if resp.status_code == 401:
         return abort(401)
-    event_list = filter(lambda b: is_valid_event(b, request.args.get('ignoreDate', False)), resp.json())
-    return {e['event_code']: e['name'] for e in event_list}
+    return {e['event_code']: e['name'] for e in filter(lambda b: is_valid_event(b, request.args.get('ignoreDate', False)), resp.json())}
 
-@bp.route('/updateAll')
-def update_all():
-    pass
+@bp.route('/<season>/<event>/', methods=("GET",))
+def current_matches(season, event):
+    resp = request_session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/matches/simple")
+    if resp.status_code == 401:
+        return abort(401)
+    return [e['key'] for e in resp.json()]
 
-@bp.route('/<event>/<qual>/updateLocal')
-def update_match_info(event, qual):
-    pass
+@bp.route('/<season>/<event>/<match>/', methods=("GET",))
+def match_info(season, event, match):
+    matchCode = season+event+"_"+match
+    resp = request_session.get(f"https://www.thebluealliance.com/api/v3/match/{matchCode}/simple")
+    if resp.status_code == 401:
+        return abort(401)
+    if 'Error' in resp:
+        return abort(Response(resp['Error'], 401))
+    a = resp.json()['alliances']
+    return a['red']['team_keys'] + a['blue']['team_keys']

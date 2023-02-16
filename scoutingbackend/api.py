@@ -4,15 +4,12 @@ import sqlite3
 from flask import Blueprint, Response, abort, request
 from flask_cors import cross_origin
 
-from scoutingbackend.schemes import MATCH_SCHEME, PIT_SCHEME
+from scoutingbackend.schemes import MATCH_SCHEME, PIT_SCHEME, format_event
 
 from . import bluealliance, db
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 bp.register_blueprint(bluealliance.bp)
-
-def format_event(season: int, event_id: str):
-    return f"frc{season}{event_id}"
 
 @bp.route('/<season>/createEvent', methods=("PUT",))
 def create_event(season):
