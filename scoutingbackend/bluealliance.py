@@ -29,7 +29,7 @@ def current_matches(season, event):
     resp = request_session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/matches/simple")
     if resp.status_code == 401:
         return abort(401)
-    return [e['key'] for e in resp.json()]
+    return [e['key'].split("_")[-1] for e in resp.json()]
 
 @bp.route('/<season>/<event>/<match>/', methods=("GET",))
 def match_info(season, event, match):
@@ -40,4 +40,4 @@ def match_info(season, event, match):
     if 'Error' in resp:
         return abort(Response(resp['Error'], 401))
     a = resp.json()['alliances']
-    return a['red']['team_keys'] + a['blue']['team_keys']
+    return [e[3:] for e in a['red']['team_keys'] + a['blue']['team_keys']] # Collect all the teams and remove the frc prefix
