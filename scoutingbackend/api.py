@@ -14,7 +14,7 @@ bp.register_blueprint(bluealliance.bp)
 @bp.route('/<season>/listEvents', methods=('GET',))
 def get_season_events(season):
     tablenames = db.get_db().execute("SELECT name from sqlite_master WHERE type='table'").fetchall()
-    tablenames = [e for e in tablenames if e.startswith(f'frc{season}')]
+    tablenames = [e.name for e in tablenames if e.name.startswith(f'frc{season}')]
     return json.dumps(tablenames)
 
 @bp.route('/<season>/createEvent', methods=("PUT",))
