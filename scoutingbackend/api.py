@@ -31,7 +31,7 @@ def pit_schema(season):
     return PIT_SCHEME[season] if season in PIT_SCHEME else abort(404)
 
 @bp.route('/<season>/<event>/pit/', methods=('POST', 'GET',))
-@cross_origin(allow_headers=('GET',))
+@cross_origin()
 def pit(season, event):
     eventCode = format_event(season, event)
     c = db.get_db()
@@ -53,7 +53,7 @@ def pit(season, event):
         return [dict(v) for v in vals]
 
 @bp.route('/<season>/<event>/match/', methods=('POST', 'GET',))
-@cross_origin(allow_headers=('GET',))
+@cross_origin()
 def match(season, event):
     eventCode = format_event(season, event)
     c = db.get_db()
