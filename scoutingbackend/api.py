@@ -11,6 +11,12 @@ from . import bluealliance, db
 bp = Blueprint('api', __name__, url_prefix='/api')
 bp.register_blueprint(bluealliance.bp)
 
+@bp.route('/<season>/listEvents', methods=('GET',))
+def get_season_events(season):
+    tablenames = db.get_db().execute("SELECT name from sqlite_master WHERE type='table'").fetchall()
+    tablenames = [e for e in tablenames if e.startswith(f'frc{season}')]
+    return json.dumps(tablenames)
+
 @bp.route('/<season>/createEvent', methods=("PUT",))
 def create_event(season):
     if season not in MATCH_SCHEME or season not in PIT_SCHEME or request.data == None:
