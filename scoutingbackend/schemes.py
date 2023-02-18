@@ -64,6 +64,7 @@ DB_SCHEME = {
     os.getenv('SEASON'): """CREATE TABLE IF NOT EXISTS {event}_match (
         match TEXT NOT NULL,
         teamNumber INTEGER NOT NULL,
+        name TEXT NOT NULL,
 
         """+s+"""
         PRIMARY KEY (match, teamNumber)
