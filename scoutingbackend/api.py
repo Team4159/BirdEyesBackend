@@ -68,6 +68,7 @@ def match(season, event):
                     jp[k+k1[0].upper()+k1[1:]] = v1
             jp["teamNumber"] = j["teamNumber"]
             jp["match"] = j["match"]
+            jp['name'] = j['name']
             
             c.execute(f"INSERT INTO {eventCode}_match ( {', '.join(jp.keys())} ) VALUES ( {', '.join(['?'] * len(jp))} )", list(jp.values()))
         except sqlite3.OperationalError as e:

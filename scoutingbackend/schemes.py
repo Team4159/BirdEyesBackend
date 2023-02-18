@@ -71,6 +71,8 @@ DB_SCHEME = {
     );
     CREATE TABLE IF NOT EXISTS {event}_pit (
         teamNumber INTEGER PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        
         """+(' TEXT,\n'.join(PIT_SCHEME[os.getenv('SEASON')].values())+" TEXT")+"""
     );
     """
