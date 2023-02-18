@@ -15,7 +15,6 @@ def create_app():
 
     # Initialize Cross-Origin support
     CORS(app)
-    app.config['CORS_HEADERS'] = 'Content-Type'
 
     # ensure the instance folder exists
     try:
