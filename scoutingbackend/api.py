@@ -2,7 +2,6 @@ import json
 import sqlite3
 
 from flask import Blueprint, Response, abort, request
-from flask_cors import cross_origin
 
 from scoutingbackend.schemes import MATCH_SCHEME, PIT_SCHEME, format_event
 

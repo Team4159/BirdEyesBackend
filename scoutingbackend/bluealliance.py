@@ -2,7 +2,6 @@ import os
 from datetime import date, datetime
 
 from flask import Blueprint, Response, abort, request
-from flask_cors import cross_origin
 from requests import Session
 
 request_session = Session()

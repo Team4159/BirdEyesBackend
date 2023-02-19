@@ -55,25 +55,27 @@ MATCH_SCHEME_DATATYPES = {
     "counter": "INTEGER", "toggle": "BOOLEAN", "slider": "INTEGER", "text": "TEXT"
 }
 
-s = ""
-for k, v in MATCH_SCHEME[os.getenv('SEASON')].items():
-    for k1, v1 in v.items():
-        s += f"{k+k1[0].upper()+k1[1:]} {MATCH_SCHEME_DATATYPES[v1]},\n"
+DB_SCHEME = {}
+for season in MATCH_SCHEME:
+    s = ""
+    for k, v in MATCH_SCHEME[season].items():
+        for k1, v1 in v.items():
+            s += f"    {k+k1[0].upper()+k1[1:]} {MATCH_SCHEME_DATATYPES[v1]},\n"
+    if (season not in DB_SCHEME):
+        DB_SCHEME[season] = ""
+    DB_SCHEME[season] += f"""
+CREATE TABLE IF NOT EXISTS {{event}}_match (
+    match TEXT NOT NULL,
+    teamNumber INTEGER NOT NULL,
+    name TEXT NOT NULL,
 
-DB_SCHEME = {
-    os.getenv('SEASON'): """CREATE TABLE IF NOT EXISTS {event}_match (
-        match TEXT NOT NULL,
-        teamNumber INTEGER NOT NULL,
-        name TEXT NOT NULL,
-
-        """+s+"""
-        PRIMARY KEY (match, teamNumber)
-    );
-    CREATE TABLE IF NOT EXISTS {event}_pit (
-        teamNumber INTEGER PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL,
-        
-        """+(' TEXT,\n'.join(PIT_SCHEME[os.getenv('SEASON')].values())+" TEXT")+"""
-    );
-    """
-}
+{s}
+    PRIMARY KEY (match, teamNumber)
+);"""
+for season in PIT_SCHEME:
+    if (season not in DB_SCHEME):
+        DB_SCHEME[season] = ""
+    DB_SCHEME[season] += """
+CREATE TABLE IF NOT EXISTS {event}_pit (
+    teamNumber INTEGER PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,\n"""+("\n".join([f"    {v} TEXT," for v in PIT_SCHEME[season].values()]))+"\n);"
