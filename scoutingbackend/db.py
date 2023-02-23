@@ -17,20 +17,11 @@ def get_db():
 
     return g.db
 
-def close_db():
+def close_db(e=None): #e=None is IMPORTANT
     db = g.pop('db', None)
 
     if db is not None:
         db.close()
-
-def init_db():
-    db = get_db()
-
-    sqlite3.register_adapter(bool, int)
-    sqlite3.register_converter("BOOLEAN", lambda v: bool(int(v)))
-
-    with current_app.open_resource('schema.sql') as f:
-        db.executescript(f.read().decode('utf8'))
 
 class SimpleConnection(object):
     def __init__(self, table: str, cursor: sqlite3.Cursor) -> None:
@@ -61,10 +52,10 @@ class SimpleConnection(object):
     
     def cache(self, kn, kv, ok, ov):
         cache_ready = json.dumps(ov)
-        self.insert(**{kn:kv, ok:cache_ready})
+        self.insert({kn:kv, ok:cache_ready})
     
     def uncache(self, kn, kv, ok):
-        return json.dumps(self.fetch_one(**{kn:kv})[ok])
+        return json.loads(self.fetch_one(**{kn:kv})[ok])
     
     def contains(self, **kwargs) -> bool:
         return bool(self.fetch_one(**kwargs))
@@ -79,14 +70,23 @@ class SimpleConnection(object):
         return self.fetch(**kwargs).fetchone()
 
 class CacheConnector(object):
-    def __init__(self):
-        self.db = sqlite3.connect(self.conf.general.cache_file)
+    def __init__(self, db: sqlite3.Connection):
+        self.db = db
     
     def get_cursor(self):
         return self.db.cursor()
     
     def create_simple(self, table: str) -> SimpleConnection:
         return SimpleConnection(table, self.get_cursor())
+
+
+def init_db():
+    db = get_db()
+
+    sqlite3.register_adapter(bool, int)
+    sqlite3.register_converter("BOOLEAN", lambda v: bool(int(v)))
+
+    CacheConnector(db).create_simple("blueallianceCache").load_generic_schema("route", "data")
 
 @click.command('init-db')
 def init_db_command():
@@ -100,3 +100,6 @@ def init_app(app):
 
 def generate_selector(argdict: dict):
     return ("WHERE "+" AND ".join([f"{k}={v}" for k,v in argdict.items() if not v == None])) if len(argdict) > 0 else ""
+
+def get_connector():
+    return CacheConnector(get_db())

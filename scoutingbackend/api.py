@@ -33,7 +33,7 @@ def eventmatchschema(season):
 def pit_schema(season):
     return PIT_SCHEME[season] if season in PIT_SCHEME else abort(404)
 
-@bp.route('/<season>/<event>/pit/', methods=('POST', 'GET',))
+@bp.route('/<season>/<event>/pit/', methods=('POST', 'GET',)) #type:ignore
 def pit(season, event):
     eventCode = format_event(season, event)
     c = db.get_db()
@@ -42,19 +42,19 @@ def pit(season, event):
         try:
             c.execute(f"INSERT INTO {eventCode}_pit ( {', '.join(PIT_SCHEME[season].values())+', teamNumber'} ) VALUES ( {', '.join(['?'] * len(j))} )", list(j.values()))
         except sqlite3.OperationalError as e:
-            return abort(Response(e, 500))
+            return abort(Response(type(e).__name__+" "+str(e), 500))
         c.commit()
         return Response(f"Successfully Added Pit Response! (#{j['teamNumber']})", 200)
     elif request.method == "GET":
         try:
             vals = c.execute(f"SELECT * FROM {eventCode}_pit " + db.generate_selector(request.args))
         except sqlite3.OperationalError as e:
-            return abort(Response(e, 404))
+            return abort(Response(type(e).__name__+" "+str(e), 404))
         if not vals:
             return abort(404)
         return [dict(v) for v in vals]
 
-@bp.route('/<season>/<event>/match/', methods=('POST', 'GET',))
+@bp.route('/<season>/<event>/match/', methods=('POST', 'GET',)) #type:ignore
 def match(season, event):
     eventCode = format_event(season, event)
     c = db.get_db()

@@ -16,6 +16,11 @@ def create_app():
     # Initialize Cross-Origin support
     CORS(app)
 
+    # initialize databases
+    #TODO: rewrite into classes so this isn't such a pain
+    from . import db
+    db.init_app(app)
+
     # ensure the instance folder exists
     try:
         os.makedirs(app.instance_path)
