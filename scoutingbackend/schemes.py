@@ -55,6 +55,13 @@ MATCH_SCHEME_DATATYPES = {
     "counter": "INTEGER", "toggle": "BOOLEAN", "slider": "INTEGER", "text": "TEXT"
 }
 
+def flatten(scheme) -> dict:
+    out = {}
+    for k, v in scheme.items():
+        for k1, v1 in v.items():
+            out[k+k1.captialize()] = MATCH_SCHEME_DATATYPES[v1]
+    return out
+
 DB_SCHEME = {}
 for season in MATCH_SCHEME:
     s = ""

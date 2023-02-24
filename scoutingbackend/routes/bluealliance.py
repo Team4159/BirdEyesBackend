@@ -3,20 +3,23 @@ from datetime import date, datetime
 
 from flask import Blueprint, Response, abort, request
 from requests import Session
-from . import db
+from .. import db
 
 request_session = Session()
 request_session.headers['X-TBA-Auth-Key'] = os.getenv('TBA_KEY') #type:ignore
 
 bp = Blueprint('bluealliance', __name__, url_prefix='/bluealliance')
 
+class BlueAllianceRoutes(object):
+    def __init__(self) -> None:
+        pass
 
-# TODO: These need to be perma-cached for offline use
-def is_valid_event(event: dict, ignore_date=False):
-    start_date = datetime.strptime(event['start_date'], r"%Y-%m-%d",).date()
-    end_date = datetime.strptime(event['end_date'], r"%Y-%m-%d").date()
-    today = date.today()
-    return event['state_prov'] == os.getenv('TBA_STATE') and (ignore_date or start_date <= today <= end_date)
+    @staticmethod
+    def is_valid_event(event: dict, ignore_date=False):
+        start_date = datetime.strptime(event['start_date'], r"%Y-%m-%d",).date()
+        end_date = datetime.strptime(event['end_date'], r"%Y-%m-%d").date()
+        today = date.today()
+        return event['state_prov'] == os.getenv('TBA_STATE') and (ignore_date or start_date <= today <= end_date)
 
 @bp.route("/", methods=("GET",))
 def current_seasons():

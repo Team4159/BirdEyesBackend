@@ -1,9 +1,10 @@
 import os
 
-from flask import Flask
+from flask import Flask, current_app
 from flask_cors import CORS
 
-from . import api
+from .routes import api
+from . import db
 
 def create_app():
     # create and configure the app
@@ -13,13 +14,12 @@ def create_app():
         DATABASE=os.path.join(app.instance_path, 'scouting.sqlite'),
     )
 
+    with app.app_context():
+        current_app.db = db.Database(app) #type:ignore
+
+
     # Initialize Cross-Origin support
     CORS(app)
-
-    # initialize databases
-    #TODO: rewrite into classes so this isn't such a pain
-    from . import db
-    db.init_app(app)
 
     # ensure the instance folder exists
     try:
