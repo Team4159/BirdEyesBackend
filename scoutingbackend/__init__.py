@@ -1,9 +1,8 @@
 import os
 
 from flask import Flask
-from flask_cors import CORS
 
-from . import api
+from scoutingbackend import api
 
 def create_app():
     # create and configure the app
@@ -12,9 +11,6 @@ def create_app():
         SECRET_KEY='dev',
         DATABASE=os.path.join(app.instance_path, 'scouting.sqlite'),
     )
-
-    # Initialize Cross-Origin support
-    CORS(app)
 
     # ensure the instance folder exists
     try:
