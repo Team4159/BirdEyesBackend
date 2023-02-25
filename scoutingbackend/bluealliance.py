@@ -90,3 +90,13 @@ def match_info(season, event, match):
         for teamCode in a[alliance]['team_keys']:
             o[teamCode[3:]] = alliance
     return o
+
+@bp.route('/<season>/<event>/*', methods=("GET",))
+def team_list(season, event):
+    resp = request_session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/teams", cache_control=flask.request.cache_control)
+    if resp.status_code != 200:
+        return abort(resp.status_code)
+    j = resp.json()
+    if 'Error' in j:
+        return abort(401)
+    return [team['key'] for team in j]
