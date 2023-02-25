@@ -134,4 +134,4 @@ class BlueAlliance(object):
             j = resp.json()
             if 'Error' in j:
                 return flask_restful.abort(401, description=j['Error'])
-            return [team['key'] for team in j]
+            return [team['team_number'] for team in j]
