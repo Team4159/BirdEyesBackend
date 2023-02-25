@@ -40,7 +40,9 @@ def pit(season, event):
     if request.method == "POST":
         j = request.get_json(force=True)
         try:
-            c.execute(f"INSERT INTO {eventCode}_pit ( {', '.join(PIT_SCHEME[season].values())+', teamNumber'} ) VALUES ( {', '.join(['?'] * len(j))} )", list(j.values()))
+            if j["teamNumber"] is None or j["name"] is None:
+                return abort(Response("Missing Required Fields", 400))
+            c.execute(f"INSERT INTO {eventCode}_pit ( {', '.join(j.keys())} ) VALUES ( {', '.join(['?'] * len(j))} )", list(j.values()))
         except sqlite3.OperationalError as e:
             return abort(Response(e, 500))
         c.commit()
