@@ -1,35 +1,35 @@
-import os
+import contextvars
+import pathlib
+import sqlite3
 
-from flask import Flask, current_app
-from flask_cors import CORS
+import flask
+import flask_cors
+import flask_restful
+import werkzeug.local
 
-from .routes import api
-from . import db
+from . import database
+from .routes import api, bluealliance
+
 
 def create_app():
-    # create and configure the app
-    app = Flask(__name__, instance_relative_config=True)
+    app = flask.Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
         SECRET_KEY='dev',
-        DATABASE=os.path.join(app.instance_path, 'scouting.sqlite'),
+        DATABASE=str(pathlib.Path(app.instance_path, 'scoutingdb.sqlite'))
     )
-
-    with app.app_context():
-        current_app.db = db.Database(app) #type:ignore
-        current_app.api = api.ApiRoutes(os.getenv('TBA_KEY'))
-        current_app.api.register(app)
-
-    # Initialize Cross-Origin support
-    CORS(app)
-
-    # ensure the instance folder exists
-    try:
-        os.makedirs(app.instance_path)
-    except OSError:
-        pass
+    app.config.from_pyfile(str(pathlib.Path(app.instance_path, 'config.py')))
+    flask_cors.CORS()
+    database.db.connect(app.config['DATABASE'])
     
-    @app.route('/') # To validate server ip
-    def test():
-        return 'BirdsEye Scouting Server Online!'
+    with app.app_context():
+        a = api.Api()
+        ba = bluealliance.BlueAlliance(app.config['TBA_KEY'])
+        ba.register(a.bp)
+        a.register(app)
+    
+    pathlib.Path(app.instance_path).mkdir(parents=True, exist_ok=True)
+    
+    @app.route('/')
+    def test(): return "BirdsEye Scouting Backend Online!"
     
     return app
