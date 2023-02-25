@@ -42,8 +42,6 @@ class EasyCaching(object):
             raw = res
         return json.dumps(raw)
         
-
-
 class Database(object):
     def __init__(self, app) -> None:
         sqlite3.register_adapter(bool, int)
@@ -56,6 +54,9 @@ class Database(object):
             d.row_factory = sqlite3.Row
             g.db = d
         return g.db
+    
+    def get_cursor(self) -> sqlite3.Cursor:
+        return self.get_db().cursor()
     
     def close_db(self, *args, **kwargs) -> None: #in-context
         db = g.pop('db', None)

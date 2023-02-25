@@ -16,7 +16,8 @@ def create_app():
 
     with app.app_context():
         current_app.db = db.Database(app) #type:ignore
-
+        current_app.api = api.ApiRoutes(os.getenv('TBA_KEY'))
+        current_app.api.register(app)
 
     # Initialize Cross-Origin support
     CORS(app)
@@ -31,5 +32,4 @@ def create_app():
     def test():
         return 'BirdsEye Scouting Server Online!'
     
-    app.register_blueprint(api.bp)
     return app

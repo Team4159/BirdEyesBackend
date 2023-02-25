@@ -1,7 +1,7 @@
 import json
 import sqlite3
 
-from flask import Blueprint, Response, abort, request, current_app
+from flask import Blueprint, Response, abort, request, current_app, Flask
 from . import bluealliance
 
 from .. import schemes
@@ -10,57 +10,64 @@ from .. import db
 
 class ApiRoutes(object):
     bp = Blueprint('api', __name__, url_prefix='/api')
-    def __init__(self) -> None:
-        pass
+    def __init__(self, api_key: str | None) -> None:
+        self.ba_key = api_key
+        self.ba = bluealliance.BlueAllianceRoutes(self.ba_key)
     
+    def register(self, app: Flask | Blueprint):
+        self.ba.register(self.bp)
+        app.register_blueprint(self.bp)
+
     @bp.route('/<season>/listEvents', methods=("GET",))
-    def route_list_events(self, season):
-        tablenames = current_app.db.execute("SELECT name from sqlite_master WHERE type='table'").fetchall() #type:ignore
+    def route_list_events(season):
+        tablenames = current_app.db.get_cursor().execute("SELECT name from sqlite_master WHERE type='table'").fetchall() #type:ignore
         tablenames = [e['name'] for e in tablenames if e['name'].startswith(f'frc{season}')]
         return json.dumps(tablenames)
     
     @bp.route('/<season>/createEvent', methods=('PUT',))
-    def route_create_event(self, season):
+    def route_create_event(season):
         if season not in schemes.MATCH_SCHEME or season not in schemes.PIT_SCHEME or not request.data:
             return abort(Response("Unrecognized Season / Bad Data", 400))
-        current_app.db.create_event(request.data.decode('utf8'), season) #type:ignore
+        current_app.db.get_cursor().create_event(request.data.decode('utf8'), season) #type:ignore
         return Response("", 200)
     
     @bp.route('/<season>/matchschema/', methods=("GET",))
-    def route_matchschema(self, season):
+    def route_matchschema(season):
         if season not in schemes.MATCH_SCHEME:
             return abort(404)
         return Response(json.dumps(schemes.MATCH_SCHEME[season], sort_keys=False), 200, content_type='application/json')
     
     @bp.route('/<season>/pitschema')
-    def route_pitschema(self, season):
+    def route_pitschema(season):
         if season not in schemes.PIT_SCHEME:
             return abort(404)
         return schemes.PIT_SCHEME[season]
     
     @bp.route('/<season>/<event>/pit/', methods=('POST', 'GET'))
-    def route_pit_wrapper(self, season, event):
+    def route_pit_wrapper(season, event):
         event = f"frc{season}{event}"
         if request.method == 'POST':
-            return self.route_pit_post(event)
+            return ApiRoutes.route_pit_post(season, event)
         elif request.method == 'GET':
-            return self.route_pit_get(event)
+            return ApiRoutes.route_pit_get(season, event)
         else:
             return abort(405)
 
-    def route_pit_post(self, event: str):
+    @staticmethod
+    def route_pit_post(season, event):
+        event_id = f"frc{season}{event}"
         data = request.get_json(True)
         try:
-            current_app.db.cursor().execute(f"INSERT INTO {event}_pit ( {', '.join(schemes.PIT_SCHEME[season].values())+', teamNumber'} ) VALUES ( {', '.join(['?'] * len(data))} )", list(data.values()))
+            current_app.db.get_cursor().execute(f"INSERT INTO {event_id}_pit ( {', '.join(schemes.PIT_SCHEME[season].values())+', teamNumber'} ) VALUES ( {', '.join(['?'] * len(data))} )", list(data.values()))
         except sqlite3.OperationalError as e:
             return abort(Response(type(e).__name__+" "+str(e), 500))
-        current_app.db.commit()
+        current_app.db.get_db().commit()
         return Response(f"Successfully Added Pit Response! (#{data['teamNumber']})", 200)
 
-
-    def route_pit_get(self, event):
+    @staticmethod
+    def route_pit_get(season, event):
         try:
-            vals = current_app.db.cursor().execute(f"SELECT * FROM {event}_pit " + db.generate_selector(request.args))
+            vals = current_app.db.get_cursor().execute(f"SELECT * FROM {event}_pit " + db.generate_selector(request.args))
         except sqlite3.OperationalError as e:
             return abort(Response(type(e).__name__+" "+str(e), 404))
         if not vals:
@@ -68,16 +75,17 @@ class ApiRoutes(object):
         return [dict(v) for v in vals]
     
     @bp.route('/<season>/<event>/match/', methods=('POST', 'GET'))
-    def route_match_wrapper(self, season, event):
+    def route_match_wrapper(season, event):
         event = f"frc{season}{event}"
         if request.method == 'POST':
-            return self.route_match_post(event)
+            return ApiRoutes.route_match_post(event)
         elif request.method == 'GET':
-            return self.route_match_get(event)
+            return ApiRoutes.route_match_get(event)
         else:
             return abort(405)
     
-    def route_match_post(self, event: str):
+    @staticmethod
+    def route_match_post(event: str):
         j = request.get_json(force=True)
         try:
             jp = {}
@@ -88,15 +96,16 @@ class ApiRoutes(object):
             jp["match"] = j["match"]
             jp['name'] = j['name']
             
-            current_app.db.cursor().execute(f"INSERT INTO {event}_match ( {', '.join(jp.keys())} ) VALUES ( {', '.join(['?'] * len(jp))} )", list(jp.values()))
+            current_app.db.get_cursor().execute(f"INSERT INTO {event}_match ( {', '.join(jp.keys())} ) VALUES ( {', '.join(['?'] * len(jp))} )", list(jp.values()))
         except sqlite3.OperationalError as e:
             return abort(Response(str(e), 404))
-        current_app.db.cursor().commit()
+        current_app.db.get_cursor().commit()
         return Response(f"Successfully Added Match Response! (#{jp['teamNumber']} @ {jp['match']})", 200)
 
-    def route_match_get(self, event):
+    @staticmethod
+    def route_match_get(event):
         try:
-            vals = current_app.db.cursor().execute(f"SELECT * FROM {event}_match "+db.generate_selector(request.args))
+            vals = current_app.db.get_cursor().execute(f"SELECT * FROM {event}_match "+db.generate_selector(request.args))
         except sqlite3.OperationalError as e:
             return abort(Response(str(e), 404))
         if not vals:
