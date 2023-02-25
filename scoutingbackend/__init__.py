@@ -1,6 +1,7 @@
 import os
 
 from flask import Flask
+from flask_cors import CORS
 
 from scoutingbackend import api
 
@@ -11,6 +12,8 @@ def create_app():
         SECRET_KEY='dev',
         DATABASE=os.path.join(app.instance_path, 'scouting.sqlite'),
     )
+
+    CORS(app, origin="*")
 
     # ensure the instance folder exists
     try:

@@ -19,29 +19,29 @@ PIT_SCHEME = {
 MATCH_SCHEME = {
     '2023': {
         "auto": {
-            "Cone Attempts": "counter",
-            "Cone Low": "counter",
-            "Cone Mid" : "counter",
-            "Cone High": "counter",
-            "Cube Attempts": "counter",
-            "Cube Low" : "counter",
-            "Cube Mid" : "counter",
-            "Cube High" : "counter",
+            "ConeAttempts": "counter",
+            "ConeLow": "counter",
+            "ConeMid" : "counter",
+            "ConeHigh": "counter",
+            "CubeAttempts": "counter",
+            "CubeLow" : "counter",
+            "CubeMid" : "counter",
+            "CubeHigh" : "counter",
             "Mobility" : "toggle",
             "Docked" : "toggle",
             "Engaged" : "toggle"
         },
         "teleop": {
-            "Cone Attempts": "counter",
-            "Cone Low": "counter",
-            "Cone Mid" : "counter",
-            "Cone High": "counter",
-            "Cube Attempts": "counter",
-            "Cube Low" : "counter",
-            "Cube Mid" : "counter",
-            "Cube High" : "counter",
-            "Intakes Single": "toggle",
-            "Intakes Double": "toggle"
+            "ConeAttempts": "counter",
+            "ConeLow": "counter",
+            "ConeMid" : "counter",
+            "ConeHigh": "counter",
+            "CubeAttempts": "counter",
+            "CubeLow" : "counter",
+            "CubeMid" : "counter",
+            "CubeHigh" : "counter",
+            "IntakesSingle": "toggle",
+            "IntakesDouble": "toggle"
         },
         "endgame": {
             "Parked" : "toggle",
@@ -50,10 +50,10 @@ MATCH_SCHEME = {
         },
         "comments": {
             "Defensive": "toggle",
-            "Driver Rating": "slider",
+            "DriverRating": "slider",
             "Fouls": "counter",
-            "Driver Comments": "text",
-            "Robot Comments": "text"
+            "DriverComments": "text",
+            "RobotComments": "text"
         }
     },
     '2022': {
@@ -93,4 +93,4 @@ for season in PIT_SCHEME:
     DB_SCHEME[season] += """
 CREATE TABLE IF NOT EXISTS {event}_pit (
     teamNumber INTEGER PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL,\n"""+("\n".join([f"    {v} TEXT," for v in PIT_SCHEME[season].values()]))+"\n);"
+    name TEXT NOT NULL,\n"""+(",\n".join([f"    {v} TEXT" for v in PIT_SCHEME[season].values()]))+"\n);"

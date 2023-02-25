@@ -25,17 +25,17 @@ def init_cache(app):
 def current_seasons():
     return {"max_season": _season, "current_season": _season}
 
-@bp.route('/<season>/', methods=("GET",))
+@bp.route('/<season>', methods=("GET",))
 def current_events(season):
     if (season != str(_season)): return abort(Response("Response Not Cached", 404))
     return {_event: "Cached Event"}
 
-@bp.route('/<season>/<event>/', methods=("GET",))
+@bp.route('/<season>/<event>', methods=("GET",))
 def current_matches(season, event):
     if (season != str(_season) or event != _event): return abort(Response("Response Not Cached", 404))
     return _matches
 
-@bp.route('/<season>/<event>/<match>/', methods=("GET",))
+@bp.route('/<season>/<event>/<match>', methods=("GET",))
 def match_info(season, event, match):
     if (season != str(_season) or event != _event or match not in _teams): return abort(Response("Response Not Cached", 404))
     return _teams[match]
