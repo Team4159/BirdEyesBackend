@@ -37,6 +37,8 @@ class Api(object):
             cur: sqlite3.Cursor = db.cursor()
             e, p = schemes.generate_table_schemas(str(season), event_name)
             cur.executescript(e)
+            cur.executescript(p)
+            db.connection().commit()
             return {}
 
     class ApiMSchema(flask_restful.Resource):
@@ -59,6 +61,8 @@ class Api(object):
             input_data = flask.request.get_json(force=True)
             if not input_data:
                 return flask_restful.abort(400, description="no input given")
+            if input_data["teamNumber"] is None or input_data["name"] is None:
+                return flask_restful.abort(400, description="missing required fields")
             query = f"INSERT INTO {event_id}_pit (teamNumber, {', '.join(schemes.PIT_SCHEME[str(season)].values())}) VALUES ({('?, '*len(input_data)).rstrip(', ')})"
             db.cursor().execute(query, tuple(input_data.values()))
             db.connection().commit()
@@ -66,7 +70,11 @@ class Api(object):
             
         def get(self, season, event):
             event_id = f"frc{season}{event}"
-            values = db.cursor().execute(f"SELECT * FROM {event_id}_pit WHERE {' AND '.join(f'{k}={v}' for k,v in flask.request.args)}")
+            query = "SELECT * FROM {event_id}_pit {query}".format(
+                event_id=event_id,
+                query='WHERE ' + ' AND '.join(f'{k}="{v}"' for k,v in flask.request.args.items()) if len(flask.request.args) else ""
+            )
+            values = db.cursor().execute(query)
             if not values:
                 return flask_restful.abort(404, description="event not found in database")
             return [dict(scout) for scout in values.fetchall()]
@@ -77,6 +85,8 @@ class Api(object):
             input_json = flask.request.get_json(force=True)
             if not input_json:
                 return flask_restful.abort(400, description="no input given")
+            if input_json["teamNumber"] is None or input_json["scouter"] is None:
+                return flask_restful.abort(400, description="missing required fields")
             submit_data = {}
             for key, value in input_json.items():
                 if isinstance(value, dict):
@@ -92,7 +102,11 @@ class Api(object):
         
         def get(self, season: int, event: str):
             event_id = f"frc{season}{event}"
-            values = db.cursor().execute(f"SELECT * FROM {event_id}_match WHERE {' AND '.join(f'{k}={v}' for k,v in flask.request.args)}")
+            query = "SELECT * FROM {event_id}_match {query}".format(
+                event_id=event_id,
+                query='WHERE ' + ' AND '.join(f'{k}="{v}"' for k,v in flask.request.args.items()) if len(flask.request.args) else ""
+            )
+            values = db.cursor().execute(query)
             if not values:
                 return flask_restful.abort(404, description="event not found in database")
             return [dict(scout) for scout in values.fetchall()]
