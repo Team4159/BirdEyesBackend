@@ -19,32 +19,49 @@ PIT_SCHEME = {
 MATCH_SCHEME = {
     '2023': {
         "auto": {
-            "coneAttempted": "counter",
-            "coneLow": "counter",
-            "coneMid": "counter",
-            "coneHig": "counter",
-            "mobility":"toggle"
+            "Cone Attempts": "counter",
+            "Cone Low": "counter",
+            "Cone Mid" : "counter",
+            "Cone High": "counter",
+            "Cube Attempts": "counter",
+            "Cube Low" : "counter",
+            "Cube Mid" : "counter",
+            "Cube High" : "counter",
+            "Mobility" : "toggle",
+            "Docked" : "toggle",
+            "Engaged" : "toggle"
         },
         "teleop": {
-            "coneAttempted": "counter",
-            "coneLow": "counter",
-            "coneMid": "counter",
-            "coneHig": "counter"
+            "Cone Attempts": "counter",
+            "Cone Low": "counter",
+            "Cone Mid" : "counter",
+            "Cone High": "counter",
+            "Cube Attempts": "counter",
+            "Cube Low" : "counter",
+            "Cube Mid" : "counter",
+            "Cube High" : "counter",
+            "Intakes Single": "toggle",
+            "Intakes Double": "toggle"
         },
         "endgame": {
-            "docked": "toggle",
-            "engaged":"toggle"
+            "Parked" : "toggle",
+            "Docked" : "toggle",
+            "Engaged" : "toggle",
         },
-        "driver": {
-            "rating": "slider",
-            "fouls": "counter"
+        "comments": {
+            "Defensive": "toggle",
+            "Driver Rating": "slider",
+            "Fouls": "counter",
+            "Driver Comments": "text",
+            "Robot Comments": "text"
         }
     },
     '2022': {
         "test": {
             "counter": "counter",
             "slider": "slider",
-            "toggle": "toggle"
+            "toggle": "toggle",
+            "text": "text"
         }
     }
 }

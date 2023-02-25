@@ -20,9 +20,7 @@ def get_season_events(season):
 def create_event(season):
     if season not in MATCH_SCHEME or season not in PIT_SCHEME or request.data == None:
         return abort(Response("Unrecognized Season / Bad Data", 400))
-    c = db.get_db()
-    c.executescript(db.DB_SCHEME[season].format(event=format_event(season, request.data.decode())))
-    c.commit()
+    db.get_db().executescript(db.DB_SCHEME[season].format(event=format_event(season, request.data.decode()))).commit()
     return Response("Table Created / Already Exists", 200)
 
 @bp.route('/<season>/matchschema/', methods=("GET",))

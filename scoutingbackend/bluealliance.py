@@ -8,11 +8,13 @@ def init_cache(app):
     global _season, _event, _matches, _teams
     with app.app_context():
         jo = json.load(open(os.path.join(app.instance_path, 'cache.json'), "r"))
-        if "season" not in jo or "event" not in jo or "matches" not in jo or "teams" not in jo:
-            raise Exception("Malformed JSON Cache")
+        if "season" not in jo or type(jo["season"]) is not str or not jo["season"].isdigit(): raise Exception("Malformed JSON Cache: Season")
         _season = jo["season"]
+        if "event" not in jo or type(jo["event"]) is not str: raise Exception("Malformed JSON Cache: Event")
         _event = jo["event"]
+        if "matches" not in jo or type(jo["matches"]) is not dict: raise Exception("Malformed JSON Cache: Matches")
         _matches = jo["matches"]
+        if "teams" not in jo or type(jo["teams"]) is not dict: raise Exception("Malformed JSON Cache: Teams")
         _teams = jo["teams"]
         _teams["*"] = {}
         for vo in _teams.values():
