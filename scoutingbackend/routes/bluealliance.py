@@ -72,6 +72,7 @@ class BlueAlliance(object):
         self.rest.add_resource(self.BASeason, '/<int:season>')
         self.rest.add_resource(self.BAEvent, '/<int:season>/<string:event>')
         self.rest.add_resource(self.BAMatch, '/<int:season>/<string:event>/<string:match>')
+        self.rest.add_resource(self.BATeams, '/<int:season>/<string:event>/*')
     
     def register(self, app: flask.Flask | flask.Blueprint):
         app.register_blueprint(self.bp)
@@ -124,3 +125,13 @@ class BlueAlliance(object):
                 for teamCode in a[alliance]['team_keys']:
                     o[teamCode[3:]] = alliance
             return o
+    
+    class BATeams(flask_restful.Resource):
+        def get(self, season: int, event: str):
+            resp = session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/teams", cache_control=flask.request.cache_control)
+            if resp.status_code != 200:
+                return flask_restful.abort(resp.status_code)
+            j = resp.json()
+            if 'Error' in j:
+                return flask_restful.abort(401, description=j['Error'])
+            return [team['key'] for team in j]
