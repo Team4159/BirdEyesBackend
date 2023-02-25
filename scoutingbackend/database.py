@@ -1,14 +1,14 @@
 import contextvars
 import os
 import sqlite3
-
+import typing
 import flask
 import werkzeug.local
 
 #THIS IS REALLY MESSY AND SHOULD BE FIXED
 
 class Database(object):
-    def connect(self, location: os.PathLike | str) -> None:
+    def connect(self, location: typing.Union[os.PathLike, str]) -> None:
         self.loc = location
         #self.conn = sqlite3.connect(location)
         

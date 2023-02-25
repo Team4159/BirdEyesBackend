@@ -2,6 +2,7 @@ import json
 import sqlite3  # typing only
 
 import flask
+import typing
 import flask_restful
 
 from .. import schemes
@@ -18,7 +19,7 @@ class Api(object):
         self.rest.add_resource(self.ApiPit, '/<int:season>/<string:event>/pit')
         self.rest.add_resource(self.ApiMatch, '/<int:season>/<string:event>/match')
     
-    def register(self, app: flask.Flask | flask.Blueprint):
+    def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
 
     class ApiList(flask_restful.Resource):

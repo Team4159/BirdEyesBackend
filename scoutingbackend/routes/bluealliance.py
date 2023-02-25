@@ -1,6 +1,7 @@
 import contextvars
 import datetime
 import time
+import typing
 import urllib.parse
 import json
 import os
@@ -16,14 +17,14 @@ from .. import schemes
 from .. import database
 
 class CachingSession(requests.Session):
-    def __init__(self, manual_cache: os.PathLike | str | None = None) -> None:
+    def __init__(self, manual_cache: typing.Union[os.PathLike, str, None] = None) -> None:
         super().__init__()
         if manual_cache:
             self.cache_path = pathlib.Path(manual_cache)
         else:
             self.cache_path = None
     
-    def set_manual_cache(self, manual_cache: os.PathLike | str):
+    def set_manual_cache(self, manual_cache: typing.Union[os.PathLike, str]):
         self.cache_path = pathlib.Path(manual_cache)
     
     def generate_response(self, data: bytes, code: int = 200):
@@ -33,7 +34,7 @@ class CachingSession(requests.Session):
         resp._content = data
         return resp
     
-    def get(self, url: str, cache_control: werkzeug.datastructures.RequestCacheControl | None = None, **kwargs) -> requests.Response:
+    def get(self, url: str, cache_control: typing.Union[werkzeug.datastructures.RequestCacheControl, None] = None, **kwargs) -> requests.Response:
         parsed_url = urllib.parse.urlparse(url)
         if 'thebluealliance.com' not in parsed_url.netloc: #not BA
             return super().get(url, **kwargs)
@@ -74,7 +75,7 @@ class BlueAlliance(object):
         self.rest.add_resource(self.BAMatch, '/<int:season>/<string:event>/<string:match>')
         self.rest.add_resource(self.BATeams, '/<int:season>/<string:event>/*')
     
-    def register(self, app: flask.Flask | flask.Blueprint):
+    def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
     
     @staticmethod
