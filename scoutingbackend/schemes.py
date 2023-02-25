@@ -37,25 +37,38 @@ PIT_SCHEME = {
 MATCH_SCHEME = {
     '2023': {
         "auto": {
-            "coneAttempted": "counter",
-            "coneLow": "counter",
-            "coneMid": "counter",
-            "coneHig": "counter",
-            "mobility":"toggle"
+            "ConeAttempted": "counter",
+            "ConeLow": "counter",
+            "ConeMid" : "counter",
+            "ConeHigh": "counter",
+            "CubeAttempted": "counter",
+            "CubeLow" : "counter",
+            "CubeMid" : "counter",
+            "CubeHigh" : "counter",
+            "mobility" : "toggle",
+            "docked" : "toggle",
+            "engaged" : "toggle"
         },
         "teleop": {
             "coneAttempted": "counter",
             "coneLow": "counter",
-            "coneMid": "counter",
-            "coneHig": "counter"
+            "coneMid" : "counter",
+            "coneHigh": "counter",
+            "cubeAttempted": "counter",
+            "cubeLow" : "counter",
+            "cubeMid" : "counter",
+            "cubeHigh" : "counter",
         },
         "endgame": {
-            "docked": "toggle",
-            "engaged":"toggle"
+            "parked" : "toggle",
+            "docked" : "toggle",
+            "engaged" : "toggle",
         },
-        "driver": {
-            "rating": "slider",
-            "fouls": "counter"
+        "comments": {
+            "driverRating" : "slider",
+            "fouls" : "counter",
+            "driverComments": "text",
+            "robotComments": "text"
         }
     },
     '2022': {
