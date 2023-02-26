@@ -121,7 +121,7 @@ class BlueAlliance(object):
             if 'Error' in j:
                 return flask_restful.abort(401, description=j['Error'])
             o = {}
-            for alliance, aliianceData in j['alliances'].items():
-                for teamCode in aliianceData['team_keys']:
+            for alliance, allianceData in j['alliances'].items():
+                for teamCode in allianceData['team_keys']:
                     o[teamCode[3:]] = alliance
             return o

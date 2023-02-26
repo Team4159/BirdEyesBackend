@@ -86,16 +86,18 @@ class Api(object):
             if not input_data or input_data["teamNumber"] is None or input_data["name"] is None or input_data["form"] is None:
                 return flask_restful.abort(400, description="Missing Required Fields")
             submit_data = {}
-            for k, v in input_data["form"].items():
-                for k1, v1 in v.items():
-                    submit_data[k+k1[0].upper()+k1[1:]] = v1
-            submit_data["teamNumber"] = input_data["teamNumber"]
-            submit_data["match"] = input_data["match"]
-            submit_data['name'] = input_data['name']
+            for key, value in input_data["form"].items():
+                if isinstance(value, dict): #nested dictionary
+                    for key1, value1 in value.items():
+                        #str.capitalize() and str.title() don't work because they uncapitalize the rest of the string
+                        submit_data[key+key1[0].upper()+key1[1:]] = value1
+                else: #just a key and value
+                    submit_data[key] = value
 
             query = f"INSERT INTO {event_id}_match ({', '.join(submit_data.keys())}) VALUES ({('?, '*len(submit_data)).rstrip(', ')})"
             c = db.connection()
-            c.execute(query, tuple(submit_data.values()))
+            #the cursor() function seems unnessecary, but connection.execute is not standard and may not work with different database libraries with a similar api
+            c.cursor().execute(query, tuple(submit_data.values()))
             c.commit()
             return {"description": "Success!", "teamNumber": input_data['teamNumber'], "match": input_data['match']}
         
