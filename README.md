@@ -1,2 +1,5 @@
-# BirdEyes-Backend
-A flask (python) server/api to (insecurely) run the scouting database for BirdsEye-Frontend
+# BirdsEye-Backend
+FRC Scouting App API Server
+
+Flutter Frontend by Max L. & Calvin
+Flask Backend by Max L. & Aiden
