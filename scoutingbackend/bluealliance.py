@@ -2,6 +2,8 @@ import json
 import os
 from flask import Blueprint, Response, abort
 
+from scoutingbackend import db
+
 bp = Blueprint('bluealliance', __name__, url_prefix='/bluealliance')
 
 def init_cache(app):
@@ -20,6 +22,7 @@ def init_cache(app):
         for vo in _teams.values():
             for k in vo.keys():
                 _teams["*"][k] = "*"
+        db.make_table(_season, _event)
 
 @bp.route("/", methods=("GET",))
 def current_seasons():

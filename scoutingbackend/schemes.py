@@ -3,15 +3,14 @@ def format_event(season: int, event_id: str):
 
 PIT_SCHEME = {
     '2023': {
-        "Which drivetrain do you use?": "drivetrain",
-        "What is your experience with FIRST so far? How did this build season go for you?": "experience",
-        "How has your robot been doing in this competition? What are some the strengths of your robot? What are some of its shortcomings?": "strengthsWeaknesses",
-        "Describe your auto": "auto",
-        "Where can you score?": "scoreZone",
-        "Can you dock in teleop?": "teleopDock",
-        "Where can you pick up pieces?": "substationZone",
-        "Which pieces can you pick up?": "scoreType",
-        "How many years have your drivers been driving the robot? How would you rate your drive team's experience/performance in this competition?": "driver",
+        "What is your experience with FIRST so far? How did this build season go for you?" : "experienceBuildseason",
+        "How has your robot been doing in this competition? What are some strengths of your robot? What are some of its shortcomings?" : "strengthsWeaknesses",
+        "Does your robot usually score in the Low, Mid, or High row?" : "scoreRow",
+        "During matches can your robot go up the Charge Station?" : "canCharge",
+        "What are your robot's preferred starting locations? What are its auto options?" : "autoStart",
+        "How do you usually intake? Is your intake specific to any one game piece?" : "howIntake",
+        "How would you rate your Drive Team's level of experience/performance in this competition?" : "driveTeamExperience",
+        "Any questions/additional comments for CardinalBotics? Anything we should know about your robot/team? " : "comments"
     },
     '2022': {"What role do you think the FIRST community has in the world, how has that role changed since its establishment?": "test"}
 }

@@ -10,30 +10,28 @@ from . import bluealliance, db
 bp = Blueprint('api', __name__, url_prefix='/api')
 bp.register_blueprint(bluealliance.bp)
 
-@bp.route('/<season>/listEvents/', methods=('GET',))
+@bp.route('/<season>/listEvents', methods=('GET',))
 def get_season_events(season):
     tablenames = db.get_db().execute("SELECT name from sqlite_master WHERE type='table'").fetchall()
     tablenames = [e['name'] for e in tablenames if e['name'].startswith(f'frc{season}')]
     return json.dumps(tablenames)
 
-@bp.route('/<season>/createEvent/', methods=("PUT",))
+@bp.route('/<season>/createEvent', methods=("PUT",))
 def create_event(season):
     if season not in MATCH_SCHEME or season not in PIT_SCHEME or request.data == None:
         return abort(Response("Unrecognized Season / Bad Data", 400))
-    c = db.get_db()
-    c.executescript(db.DB_SCHEME[season].format(event=format_event(season, request.data.decode())))
-    c.commit()
+    db.make_table(season, request.data.decode())
     return Response("Table Created / Already Exists", 200)
 
-@bp.route('/<season>/matchschema/', methods=("GET",))
+@bp.route('/<season>/matchschema', methods=("GET",))
 def eventmatchschema(season):
     return Response(json.dumps(MATCH_SCHEME[season], sort_keys=False), 200, content_type='application/json') if season in MATCH_SCHEME else abort(404)
 
-@bp.route('/<season>/pitschema/', methods=("GET",))
+@bp.route('/<season>/pitschema', methods=("GET",))
 def pit_schema(season):
     return PIT_SCHEME[season] if season in PIT_SCHEME else abort(404)
 
-@bp.route('/<season>/<event>/pit/', methods=('POST', 'GET',))
+@bp.route('/<season>/<event>/pit', methods=('POST', 'GET',))
 def pit(season, event):
     eventCode = format_event(season, event)
     c = db.get_db()
@@ -56,7 +54,7 @@ def pit(season, event):
             return abort(404)
         return [dict(v) for v in vals]
 
-@bp.route('/<season>/<event>/match/', methods=('POST', 'GET',))
+@bp.route('/<season>/<event>/match', methods=('POST', 'GET',))
 def match(season, event):
     eventCode = format_event(season, event)
     c = db.get_db()

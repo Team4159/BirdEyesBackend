@@ -25,6 +25,11 @@ def get_db():
 
     return g.db
 
+def make_table(season, event):
+    c = get_db()
+    c.executescript(DB_SCHEME[season].format(event=format_event(season, event)))
+    c.commit()
+
 def close_db():
     db = g.pop('db', None)
 
