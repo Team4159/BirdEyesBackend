@@ -1,11 +1,7 @@
-import contextvars
 import pathlib
-import sqlite3
 
 import flask
 import flask_cors
-import flask_restful
-import werkzeug.local
 
 from . import database
 from .routes import api, bluealliance
@@ -19,7 +15,7 @@ def create_app():
         MANUAL_CACHE=str(pathlib.Path(app.instance_path, 'manual_cache'))
     )
     app.config.from_pyfile(str(pathlib.Path(app.instance_path, 'config.py')))
-    flask_cors.CORS()
+    flask_cors.CORS(app, origins="*")
     database.db.connect(app.config['DATABASE'])
     
     with app.app_context():
@@ -33,6 +29,6 @@ def create_app():
     pathlib.Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     
     @app.route('/')
-    def test(): return "BirdsEye Scouting Backend Online!"
+    def test(): return "BirdsEye Scouting Server Online!"
     
     return app

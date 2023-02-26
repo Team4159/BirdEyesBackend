@@ -1,20 +1,16 @@
-import contextvars
 import datetime
-import time
-import typing
-import urllib.parse
 import json
 import os
 import pathlib
-import sqlite3  # typing only
+import time
+import typing
+import urllib.parse
 
 import flask
-import werkzeug.datastructures
 import flask_restful
 import requests
+import werkzeug.datastructures
 
-from .. import schemes
-from .. import database
 
 class CachingSession(requests.Session):
     def __init__(self, manual_cache: typing.Union[os.PathLike, str, None] = None) -> None:
@@ -73,7 +69,6 @@ class BlueAlliance(object):
         self.rest.add_resource(self.BASeason, '/<int:season>')
         self.rest.add_resource(self.BAEvent, '/<int:season>/<string:event>')
         self.rest.add_resource(self.BAMatch, '/<int:season>/<string:event>/<string:match>')
-        self.rest.add_resource(self.BATeams, '/<int:season>/<string:event>/*')
     
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
@@ -83,12 +78,12 @@ class BlueAlliance(object):
         start_date = datetime.datetime.strptime(event['start_date'], r"%Y-%m-%d",).date()
         end_date = datetime.datetime.strptime(event['end_date'], r"%Y-%m-%d").date()
         today = datetime.date.today()
-        return event['state_prov'] == flask.current_app.config['TBA_STATE'] and (ignore_date or start_date <= today <= end_date)
+        return ("TBA_STATE" not in flask.current_app.config or event['state_prov'] == flask.current_app.config['TBA_STATE']) and (ignore_date or start_date <= today <= end_date)
     
     class BAIndex(flask_restful.Resource):
         def get(self):
             resp = session.get("https://www.thebluealliance.com/api/v3/status", cache_control=flask.request.cache_control)
-            if resp.status_code != 200:
+            if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             respj = resp.json()
             open("TEST.json", 'wb+').write(resp.content)
@@ -98,7 +93,7 @@ class BlueAlliance(object):
         def get(self, season: int):
             ignore_date = flask.request.args.get('ignoreDate', "false").lower()=="true"
             resp = session.get(f"https://www.thebluealliance.com/api/v3/events/{season}/simple", cache_control=flask.request.cache_control)
-            if resp.status_code != 200:
+            if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             j = resp.json()
             return {e['event_code']: e['name'] for e in filter(lambda b: BlueAlliance.is_valid_event(b, ignore_date), j)}
@@ -106,33 +101,27 @@ class BlueAlliance(object):
     class BAEvent(flask_restful.Resource):
         def get(self, season: int, event: str):
             resp = session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/matches/simple", cache_control=flask.request.cache_control)
-            if resp.status_code != 200:
+            if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             j = resp.json()
             return {e['key'].split("_")[-1]: e['key'] for e in j}
         
     class BAMatch(flask_restful.Resource):
         def get(self, season: int, event: str, match: str):
+            if match == "*":
+                resp = session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/teams/keys", cache_control=flask.request.cache_control)
+                if not resp.ok:
+                    return flask_restful.abort(resp.status_code)
+                return {team_code[3:]: "*" for team_code in resp.json()}
             match_code = f"{season}{event}_{match}"
             resp = session.get(f"https://www.thebluealliance.com/api/v3/match/{match_code}/simple", cache_control=flask.request.cache_control)
-            if resp.status_code != 200:
+            if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             j = resp.json()
             if 'Error' in j:
                 return flask_restful.abort(401, description=j['Error'])
-            a = j['alliances']
             o = {}
-            for alliance in a.keys():
-                for teamCode in a[alliance]['team_keys']:
+            for alliance, aliianceData in j['alliances'].items():
+                for teamCode in aliianceData['team_keys']:
                     o[teamCode[3:]] = alliance
             return o
-    
-    class BATeams(flask_restful.Resource):
-        def get(self, season: int, event: str):
-            resp = session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/teams", cache_control=flask.request.cache_control)
-            if resp.status_code != 200:
-                return flask_restful.abort(resp.status_code)
-            j = resp.json()
-            if 'Error' in j:
-                return flask_restful.abort(401, description=j['Error'])
-            return [team['team_number'] for team in j]

@@ -1,11 +1,6 @@
-import contextvars
 import os
 import sqlite3
 import typing
-import flask
-import werkzeug.local
-
-#THIS IS REALLY MESSY AND SHOULD BE FIXED
 
 class Database(object):
     def connect(self, location: typing.Union[os.PathLike, str]) -> None:
@@ -30,3 +25,6 @@ class Database(object):
         self.connection().commit()
 
 db = Database() #idk if this is okay it probably isn't should probably be context-specific
+
+def generate_selector(argdict: dict):
+    return ("WHERE "+" AND ".join([f"{k}={v}" for k,v in argdict.items() if not v == None])) if len(argdict) > 0 else ""
