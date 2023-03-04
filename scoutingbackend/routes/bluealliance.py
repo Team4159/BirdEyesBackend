@@ -10,7 +10,7 @@ import flask
 import flask_restful
 import requests
 import werkzeug.datastructures
-
+from ..database import db
 
 class CachingSession(requests.Session):
     def __init__(self, manual_cache: typing.Union[os.PathLike, str, None] = None) -> None:
@@ -112,7 +112,14 @@ class BlueAlliance(object):
                 resp = session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/teams/keys", cache_control=flask.request.cache_control)
                 if not resp.ok:
                     return flask_restful.abort(resp.status_code)
-                return {team_code[3:]: "*" for team_code in resp.json()}
+                
+                if flask.request.args.get("empty", "false") == "false":
+                    return {team_code[3:]: "*" for team_code in resp.json()}
+                else:
+                    scoutedlist = [t['teamNumber'] for t in db.cursor().execute(f"SELECT (teamNumber) FROM frc{season}{event}_pit").fetchall()]
+                    full_list = [int(team_code[3:]) for team_code in resp.json()]
+                    return list(set(full_list).difference(scoutedlist))
+                    
             match_code = f"{season}{event}_{match}"
             resp = session.get(f"https://www.thebluealliance.com/api/v3/match/{match_code}/simple", cache_control=flask.request.cache_control)
             if not resp.ok:
