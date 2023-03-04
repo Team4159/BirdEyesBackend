@@ -14,6 +14,8 @@ def generate_table_schemas(season: str, event: str) -> tuple[str, str]:
     
     return (eschema, pschema)
 
+invert_alliance = {"red": "blue", "blue": "red"}
+
 PIT_SCHEME = {
     '2023': {
         "What is your experience with FIRST so far? How did this build season go for you?" : "experienceBuildseason",
