@@ -1,6 +1,6 @@
 import json
 import os
-from flask import Blueprint, Response, abort
+from flask import Blueprint, Response, abort, request
 
 from scoutingbackend import db
 
@@ -41,4 +41,7 @@ def current_matches(season, event):
 @bp.route('/<season>/<event>/<match>', methods=("GET",))
 def match_info(season, event, match):
     if (season != str(_season) or event != _event or match not in _teams): return abort(Response("Response Not Cached", 404))
+    if match == "*" and request.args.get("onlyUnfilled", "false") == "true":
+        scoutedlist = [t['teamNumber'] for t in db.cursor().execute(f"SELECT (teamNumber) FROM frc{season}{event}_pit").fetchall()]
+        return list(set(_teams[match]).difference(scoutedlist))
     return _teams[match]
