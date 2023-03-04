@@ -55,23 +55,21 @@ class Api(object):
 
     class ApiPit(flask_restful.Resource):
         def post(self, season: int, event: str):
-            event_id = f"frc{season}{event}"
             input_data = flask.request.get_json(force=True)
             if not input_data:
                 return flask_restful.abort(400)
             if input_data["teamNumber"] is None or input_data["name"] is None:
                 return flask_restful.abort(400, description="Missing Required Fields")
             
-            query = f"INSERT INTO {event_id}_pit ({', '.join(input_data.keys())}) VALUES ({('?, '*len(input_data)).rstrip(', ')})"
+            query = f"INSERT INTO frc{season}{event}_pit ({', '.join(input_data.keys())}) VALUES ({('?, '*len(input_data)).rstrip(', ')})"
             c = db.connection()
             c.execute(query, tuple(input_data.values()))
             c.commit()
             return {"description": "Success!", "teamNumber": input_data['teamNumber']}
             
         def get(self, season, event):
-            event_id = f"frc{season}{event}"
             query = "SELECT * FROM {event_id}_pit {query}".format(
-                event_id=event_id,
+                event_id=f"frc{season}{event}",
                 query=generate_selector(flask.request.args)
             )
             values = db.cursor().execute(query)
@@ -81,7 +79,6 @@ class Api(object):
 
     class ApiMatch(flask_restful.Resource):
         def post(self, season: int, event: str):
-            event_id = f"frc{season}{event}"
             input_data = flask.request.get_json(force=True)
             if not input_data or input_data["teamNumber"] is None or input_data["name"] is None or input_data["form"] is None:
                 return flask_restful.abort(400, description="Missing Required Fields")
@@ -94,7 +91,7 @@ class Api(object):
                 else: #just a key and value
                     submit_data[key] = value
 
-            query = f"INSERT INTO {event_id}_match ({', '.join(submit_data.keys())}) VALUES ({('?, '*len(submit_data)).rstrip(', ')})"
+            query = f"INSERT INTO frc{season}{event}_match ({', '.join(submit_data.keys())}) VALUES ({('?, '*len(submit_data)).rstrip(', ')})"
             c = db.connection()
             #the cursor() function seems unnessecary, but connection.execute is not standard and may not work with different database libraries with a similar api
             c.cursor().execute(query, tuple(submit_data.values()))
@@ -102,9 +99,8 @@ class Api(object):
             return {"description": "Success!", "teamNumber": input_data['teamNumber'], "match": input_data['match']}
         
         def get(self, season: int, event: str):
-            event_id = f"frc{season}{event}"
             query = "SELECT * FROM {event_id}_match {query}".format(
-                event_id=event_id,
+                event_id=f"frc{season}{event}",
                 query=generate_selector(flask.request.args)
             )
             values = db.cursor().execute(query)
