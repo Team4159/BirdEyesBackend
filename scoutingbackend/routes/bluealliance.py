@@ -58,6 +58,12 @@ class CachingSession(requests.Session):
 
 session = CachingSession() #SHOULD REALLY BE A CONTEXT-SENSITIVE VARIABLE BUT WHATEVER
 
+def get_special_args(key: str, default: str = '') -> str:
+    if hasattr(flask.g, 'args') and key in flask.g.args:
+        return flask.g.args[key]
+    else:
+        return flask.request.args.get(key, default=default)
+
 class BlueAlliance(object):
     def __init__(self, api_key: str) -> None:
         #session.set(requests.Session()) #change me with custom cacher
@@ -69,6 +75,11 @@ class BlueAlliance(object):
         self.rest.add_resource(self.BASeason, '/<int:season>')
         self.rest.add_resource(self.BAEvent, '/<int:season>/<string:event>')
         self.rest.add_resource(self.BAMatch, '/<int:season>/<string:event>/<string:match>')
+        
+        self.index = self.BAIndex()
+        self.season = self.BASeason()
+        self.event = self.BAEvent()
+        self.match = self.BAMatch()
     
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
@@ -91,7 +102,8 @@ class BlueAlliance(object):
             
     class BASeason(flask_restful.Resource):
         def get(self, season: int):
-            ignore_date = flask.request.args.get('ignoreDate', "false").lower()=="true"
+            
+            ignore_date = get_special_args('ignoreDate', 'false').lower()=="true"
             resp = session.get(f"https://www.thebluealliance.com/api/v3/events/{season}/simple", cache_control=flask.request.cache_control)
             if not resp.ok:
                 return flask_restful.abort(resp.status_code)
@@ -113,7 +125,7 @@ class BlueAlliance(object):
                 if not resp.ok:
                     return flask_restful.abort(resp.status_code)
                 
-                if flask.request.args.get("empty", "false") == "false":
+                if get_special_args("empty", "false") == "false":
                     return {team_code[3:]: "*" for team_code in resp.json()}
                 else:
                     scoutedlist = [t['teamNumber'] for t in db.cursor().execute(f"SELECT (teamNumber) FROM frc{season}{event}_pit").fetchall()]

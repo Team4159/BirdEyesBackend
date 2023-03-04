@@ -8,6 +8,11 @@ import flask_restful
 from .. import schemes
 from ..database import db, generate_selector
 
+def merge_dictlike(d1: dict, d2: dict) -> dict:
+    d1 = dict(d1)
+    d1.update(d2)
+    return d2
+
 class Api(object):
     def __init__(self) -> None:
         self.bp = flask.Blueprint('api', __name__, url_prefix='/api')
@@ -18,6 +23,13 @@ class Api(object):
         self.rest.add_resource(self.ApiPSchema, '/<int:season>/pitschema')
         self.rest.add_resource(self.ApiPit, '/<int:season>/<string:event>/pit')
         self.rest.add_resource(self.ApiMatch, '/<int:season>/<string:event>/match')
+    
+        self.list = self.ApiList()
+        self.create = self.ApiCreate()
+        self.match_schema = self.ApiMSchema()
+        self.pit_schema = self.ApiPSchema()
+        self.match = self.ApiMatch()
+        self.pit = self.ApiPit()
     
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
@@ -72,7 +84,7 @@ class Api(object):
             event_id = f"frc{season}{event}"
             query = "SELECT * FROM {event_id}_pit {query}".format(
                 event_id=event_id,
-                query=generate_selector(flask.request.args)
+                query=generate_selector(merge_dictlike(flask.request.args, flask.g.args) if hasattr(flask.g, 'args') else flask.request.args)
             )
             values = db.cursor().execute(query)
             if not values:
@@ -105,7 +117,7 @@ class Api(object):
             event_id = f"frc{season}{event}"
             query = "SELECT * FROM {event_id}_match {query}".format(
                 event_id=event_id,
-                query=generate_selector(flask.request.args)
+                query=generate_selector(merge_dictlike(flask.request.args, flask.g.args) if hasattr(flask.g, 'args') else flask.request.args)
             )
             values = db.cursor().execute(query)
             if not values:
