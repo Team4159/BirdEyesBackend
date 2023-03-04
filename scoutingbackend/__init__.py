@@ -1,23 +1,23 @@
-import pathlib
+from pathlib import Path
 
 import flask
 import flask_cors
+from database import db
 
-from . import database
 from .routes import api, bluealliance
 
 
 def create_app():
     app = flask.Flask(__name__, instance_relative_config=True)
-    pathlib.Path(app.instance_path).mkdir(parents=True, exist_ok=True)
+    Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     app.config.from_mapping(
         SECRET_KEY='dev',
-        DATABASE=str(pathlib.Path(app.instance_path, 'scoutingdb.sqlite')),
-        MANUAL_CACHE=str(pathlib.Path(app.instance_path, 'manual_cache'))
+        DATABASE=str(Path(app.instance_path, 'scoutingdb.sqlite')),
+        MANUAL_CACHE=str(Path(app.instance_path, 'manual_cache'))
     )
-    app.config.from_pyfile(str(pathlib.Path(app.instance_path, 'config.py')))
+    app.config.from_pyfile(str(Path(app.instance_path, 'config.py')))
     flask_cors.CORS(app, origins="*")
-    database.db.connect(app.config['DATABASE'])
+    db.connect(app.config['DATABASE'])
     
     with app.app_context():
         bluealliance.session.set_manual_cache(app.config['MANUAL_CACHE'])

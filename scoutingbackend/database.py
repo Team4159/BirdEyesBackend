@@ -2,10 +2,10 @@ import os
 import sqlite3
 import typing
 
+
 class Database(object):
     def connect(self, location: typing.Union[os.PathLike, str]) -> None:
         self.loc = location
-        #self.conn = sqlite3.connect(location)
         
     def connection(self):
         if not hasattr(self, 'loc'):
@@ -18,11 +18,6 @@ class Database(object):
         if not hasattr(self, 'loc'):
             raise RuntimeError("Database has not connected yet")
         return self.connection().cursor()
-    
-    def commit(self):
-        if not hasattr(self, 'loc'):
-            raise RuntimeError("Database has not connected yet")
-        self.connection().commit()
 
 db = Database() #idk if this is okay it probably isn't should probably be context-specific
 

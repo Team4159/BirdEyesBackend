@@ -1,12 +1,12 @@
 import json
-import sqlite3  # typing only
+import typing
 
 import flask
-import typing
 import flask_restful
 
 from .. import schemes
 from ..database import db, generate_selector
+
 
 class Api(object):
     def __init__(self) -> None:
@@ -35,7 +35,7 @@ class Api(object):
                 return flask_restful.abort(400)
             event_name = flask.request.get_data().decode('utf8')
 
-            cur: sqlite3.Cursor = db.cursor()
+            cur = db.cursor()
             e, p = schemes.generate_table_schemas(str(season), event_name)
             cur.executescript(e).executescript(p)
             db.connection().commit()
