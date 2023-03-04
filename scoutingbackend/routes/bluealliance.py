@@ -115,12 +115,12 @@ class BlueAlliance(object):
                 if not resp.ok:
                     return flask_restful.abort(resp.status_code)
                 
-                if flask.request.args.get("empty", "false") == "false":
-                    return {team_code[3:]: "*" for team_code in resp.json()}
-                else:
+                if flask.request.args.get("onlyUnfilled", "false") == "true":
                     scoutedlist = [t['teamNumber'] for t in db.cursor().execute(f"SELECT (teamNumber) FROM frc{season}{event}_pit").fetchall()]
                     full_list = [int(team_code[3:]) for team_code in resp.json()]
                     return list(set(full_list).difference(scoutedlist))
+                else:
+                    return {team_code[3:]: "*" for team_code in resp.json()}
                     
             match_code = f"{season}{event}_{match}"
             resp = session.get(f"https://www.thebluealliance.com/api/v3/match/{match_code}/simple", cache_control=flask.request.cache_control)
