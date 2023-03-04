@@ -9,6 +9,7 @@ from .routes import api, bluealliance
 
 def create_app():
     app = flask.Flask(__name__, instance_relative_config=True)
+    pathlib.Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     app.config.from_mapping(
         SECRET_KEY='dev',
         DATABASE=str(pathlib.Path(app.instance_path, 'scoutingdb.sqlite')),
@@ -25,9 +26,7 @@ def create_app():
         ba = bluealliance.BlueAlliance(app.config['TBA_KEY'])
         ba.register(a.bp)
         a.register(app)
-    
-    pathlib.Path(app.instance_path).mkdir(parents=True, exist_ok=True)
-    
+        
     @app.route('/')
     def test(): return "BirdsEye Scouting Server Online!"
     

@@ -10,7 +10,9 @@ import flask
 import flask_restful
 import requests
 import werkzeug.datastructures
+
 from ..database import db
+
 
 class CachingSession(requests.Session):
     def __init__(self, manual_cache: typing.Union[os.PathLike, str, None] = None) -> None:
