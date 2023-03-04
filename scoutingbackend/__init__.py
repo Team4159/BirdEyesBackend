@@ -2,8 +2,8 @@ from pathlib import Path
 
 import flask
 import flask_cors
-from database import db
 
+from .database import db
 from .routes import api, bluealliance
 
 
