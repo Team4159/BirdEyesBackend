@@ -10,7 +10,9 @@ import flask
 import flask_restful
 import requests
 import werkzeug.datastructures
+
 from ..database import db
+
 
 class CachingSession(requests.Session):
     def __init__(self, manual_cache: typing.Union[os.PathLike, str, None] = None) -> None:
@@ -96,9 +98,8 @@ class BlueAlliance(object):
             resp = session.get("https://www.thebluealliance.com/api/v3/status", cache_control=flask.request.cache_control)
             if not resp.ok:
                 return flask_restful.abort(resp.status_code)
-            respj = resp.json()
-            open("TEST.json", 'wb+').write(resp.content)
-            return {"max_season": respj['max_season'], "current_season": respj['current_season']}
+            j = resp.json()
+            return {"max_season": j['max_season'], "current_season": j['current_season']}
             
     class BASeason(flask_restful.Resource):
         def get(self, season: int):
@@ -108,7 +109,7 @@ class BlueAlliance(object):
             if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             j = resp.json()
-            return {e['event_code']: e['name'] for e in filter(lambda b: BlueAlliance.is_valid_event(b, ignore_date), j)}
+            return {e['event_code']: e['name'] for e in j if BlueAlliance.is_valid_event(e, ignore_date)}
     
     class BAEvent(flask_restful.Resource):
         def get(self, season: int, event: str):
@@ -125,15 +126,16 @@ class BlueAlliance(object):
                 if not resp.ok:
                     return flask_restful.abort(resp.status_code)
                 
-                if get_special_args("empty", "false") == "false":
-                    return {team_code[3:]: "*" for team_code in resp.json()}
-                else:
-                    scoutedlist = [t['teamNumber'] for t in db.cursor().execute(f"SELECT (teamNumber) FROM frc{season}{event}_pit").fetchall()]
+                if flask.request.args.get("onlyUnfilled", "false") == "true":
+                    try:
+                        scoutedlist = [t['teamNumber'] for t in db.cursor().execute(f"SELECT (teamNumber) FROM frc{season}{event}_pit").fetchall()]
+                    except:
+                        scoutedlist = []
                     full_list = [int(team_code[3:]) for team_code in resp.json()]
                     return list(set(full_list).difference(scoutedlist))
-                    
-            match_code = f"{season}{event}_{match}"
-            resp = session.get(f"https://www.thebluealliance.com/api/v3/match/{match_code}/simple", cache_control=flask.request.cache_control)
+                else:
+                    return {team_code[3:]: "*" for team_code in resp.json()}
+            resp = session.get(f"https://www.thebluealliance.com/api/v3/match/{season}{event}_{match}/simple", cache_control=flask.request.cache_control)
             if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             j = resp.json()

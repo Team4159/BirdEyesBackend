@@ -6,14 +6,13 @@ def flatten(scheme: dict[str, dict[str, str]]) -> dict[str, str]:
     return out
 
 def generate_table_schemas(season: str, event: str) -> tuple[str, str]:
-        table_name = f"frc{season}{event}"
-        flattened_scheme = flatten(MATCH_SCHEME[season])
-        eschema_middle = ", ".join(f"{name} {type_}" for name, type_ in flattened_scheme.items())
-        pschema_middle = ", ".join(f"{question_name} TEXT" for question_name in PIT_SCHEME[season].values())
-        eschema = f"""CREATE TABLE IF NOT EXISTS {table_name}_match (match TEXT NOT NULL, teamNumber INTEGER NOT NULL, name TEXT NOT NULL, {eschema_middle}, PRIMARY KEY (match, teamNumber, name));"""
-        pschema = f"""CREATE TABLE IF NOT EXISTS {table_name}_pit (teamNumber INTEGER NOT NULL, name TEXT NOT NULL, {pschema_middle});"""
-        
-        return (eschema, pschema)
+    table_name = f"frc{season}{event}"
+    eschema_middle = ", ".join(f"{name} {type_}" for name, type_ in flatten(MATCH_SCHEME[season]).items())
+    pschema_middle = ", ".join(f"{question_name} TEXT" for question_name in PIT_SCHEME[season].values())
+    eschema = f"CREATE TABLE IF NOT EXISTS {table_name}_match (match TEXT NOT NULL, teamNumber INTEGER NOT NULL, name TEXT NOT NULL, {eschema_middle}, PRIMARY KEY (match, teamNumber));"
+    pschema = f"CREATE TABLE IF NOT EXISTS {table_name}_pit (teamNumber INTEGER NOT NULL, name TEXT NOT NULL, {pschema_middle}, PRIMARY KEY (teamNumber, name));"
+    
+    return (eschema, pschema)
 
 PIT_SCHEME = {
     '2023': {
