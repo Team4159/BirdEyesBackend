@@ -3,8 +3,8 @@ from pathlib import Path
 import flask
 import flask_cors
 
-from .database import db
-from .routes import api, bluealliance
+from scoutingbackend.database import db
+from scoutingbackend.routes import api, bluealliance, analysis
 
 
 def create_app():
@@ -23,8 +23,10 @@ def create_app():
         bluealliance.session.set_manual_cache(app.config['MANUAL_CACHE'])
         
         a = api.Api()
-        ba = bluealliance.BlueAlliance(app.config['TBA_KEY'])
+        ba = bluealliance.BlueAlliance(app.config["TBA_KEY"])
         ba.register(a.bp)
+        an = analysis.Analysis()
+        an.register(a.bp)
         a.register(app)
         
     @app.route('/')
