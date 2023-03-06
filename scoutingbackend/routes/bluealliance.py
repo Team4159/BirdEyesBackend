@@ -4,7 +4,7 @@ import typing
 import flask
 import flask_restful
 
-from scoutingbackend.cachingsession import session
+from scoutingbackend.cachingsession import get_with_cache, session
 from scoutingbackend.database import db
 
 
@@ -31,7 +31,7 @@ class BlueAlliance(object):
     
     class BAIndex(flask_restful.Resource):
         def get(self):
-            resp = session.get("https://www.thebluealliance.com/api/v3/status", cache_control=flask.request.cache_control)
+            resp = get_with_cache("https://www.thebluealliance.com/api/v3/status")
             if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             j = resp.json()
@@ -40,7 +40,7 @@ class BlueAlliance(object):
     class BASeason(flask_restful.Resource):
         def get(self, season: int):
             ignore_date = flask.request.args.get('ignoreDate', "false").lower()=="true"
-            resp = session.get(f"https://www.thebluealliance.com/api/v3/events/{season}/simple", cache_control=flask.request.cache_control)
+            resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/events/{season}/simple")
             if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             j = resp.json()
@@ -48,7 +48,7 @@ class BlueAlliance(object):
     
     class BAEvent(flask_restful.Resource):
         def get(self, season: int, event: str):
-            resp = session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/matches/simple", cache_control=flask.request.cache_control)
+            resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/matches/simple")
             if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             j = resp.json()
@@ -57,7 +57,7 @@ class BlueAlliance(object):
     class BAMatch(flask_restful.Resource):
         def get(self, season: int, event: str, match: str):
             if match == "*":
-                resp = session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/teams/keys", cache_control=flask.request.cache_control)
+                resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/teams/keys")
                 if not resp.ok:
                     return flask_restful.abort(resp.status_code)
                 
@@ -70,7 +70,7 @@ class BlueAlliance(object):
                     return list(set(full_list).difference(scoutedlist))
                 else:
                     return {team_code[3:]: "*" for team_code in resp.json()}
-            resp = session.get(f"https://www.thebluealliance.com/api/v3/match/{season}{event}_{match}/simple", cache_control=flask.request.cache_control)
+            resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/match/{season}{event}_{match}/simple")
             if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             j = resp.json()

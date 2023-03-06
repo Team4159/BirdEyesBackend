@@ -25,7 +25,7 @@ def create_app():
         a = api.Api()
         ba = bluealliance.BlueAlliance(app.config["TBA_KEY"])
         ba.register(a.bp)
-        an = analysis.Analysis()
+        an = analysis.Analysis2023()
         an.register(a.bp)
         a.register(app)
         
