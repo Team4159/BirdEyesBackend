@@ -63,7 +63,7 @@ class BlueAlliance(object):
                 
                 if flask.request.args.get("onlyUnfilled", "false") == "true":
                     try:
-                        scoutedlist = [t['teamNumber'] for t in db.cursor().execute(f"SELECT (teamNumber) FROM frc{season}{event}_pit").fetchall()]
+                        scoutedlist = [t['teamNumber'] for t in db.connection().cursor().execute(f"SELECT (teamNumber) FROM frc{season}{event}_pit").fetchall()]
                     except:
                         scoutedlist = []
                     full_list = [int(team_code[3:]) for team_code in resp.json()]
@@ -88,7 +88,7 @@ class BlueAlliance(object):
             resp = session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/matches", cache_control=flask.request.cache_control)
             data = resp.json()
             for match in data:
-                cur = db.cursor()
+                cur = db.connection().cursor()
                 for team_key in match["red"]["team_keys"]:
                     data = {
                         "teamNumber": int(team_key.ltrip("frc")),
