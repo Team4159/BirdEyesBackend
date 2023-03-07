@@ -1,2 +1,0 @@
-TBA_STATE=CA
-TBA_KEY=<yourkey>
