@@ -120,15 +120,24 @@ class Analysis2023(object):
                 for key in self.SCORING_POINTS.keys():
                     score_total += int(row[key]) * self.SCORING_POINTS[key]
 
-            return { "points": score_total / len(matches) }
+            return { "score": score_total / len(matches) }
     
     class AutoScoring(flask_restful.Resource):
+        AUTO_SCORING_POINTS = { # Might move elsewhere
+            "low"   : 3,
+            "mid"   : 4,
+            "high"  : 6,
+            "mobility"  : 3,
+            "docked"    : 8,
+            "engaged"   : 4,
+        }
+
         def get(self, event: str, team: int):
             cursor = db.connection().cursor()
             table = f"frc2023{event}_match"
             matches = cursor.execute(f"select * from {table} where teamNumber={team}").fetchall()
 
-            cone_low_total = cone_mid_total = cone_high_total = cone_percentage_total = cube_low_total = cube_mid_total = cube_high_total = cube_percentage_total = 0
+            cone_low_total = cone_mid_total = cone_high_total = cone_percentage_total = cube_low_total = cube_mid_total = cube_high_total = cube_percentage_total = score_total = 0
 
             for row in matches:
                 cone_low_total += row["autoConelow"]
@@ -139,6 +148,9 @@ class Analysis2023(object):
                 cube_mid_total += row["autoCubemid"]
                 cube_high_total += row["autoCubehigh"]
                 cube_percentage_total += (row["autoCubelow"] + row["autoCubemid"] + row["autoCubehigh"]) / (row["autoCubeAttempts"] + row["autoCubelow"] + row["autoCubemid"] + row["autoCubehigh"])
+                score_total += int(row["autoMobility"]) * self.AUTO_SCORING_POINTS["mobility"] + int(row["autoDocked"]) * self.AUTO_SCORING_POINTS["docked"] + int(row["autoEngaged"]) * self.AUTO_SCORING_POINTS["engaged"]
+            
+            score_total += (cone_low_total + cube_low_total) * self.AUTO_SCORING_POINTS["low"] + (cone_mid_total + cube_high_total) * self.AUTO_SCORING_POINTS["mid"] + (cone_high_total + cube_high_total) * self.AUTO_SCORING_POINTS["high"]
 
             return {
                 "averageConeLow": cone_low_total / len(matches),
@@ -148,5 +160,6 @@ class Analysis2023(object):
                 "averageCubeLow": cube_low_total / len(matches),
                 "averageCubeMid": cube_mid_total / len(matches),
                 "averageCubeHigh": cube_high_total / len(matches),
-                "cubePercentage": cube_percentage_total / len(matches)
+                "cubePercentage": cube_percentage_total / len(matches),
+                "averageScore": score_total / len(matches),
             }
