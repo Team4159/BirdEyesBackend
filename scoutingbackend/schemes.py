@@ -17,11 +17,11 @@ PIT_SCHEME = {
 MATCH_SCHEME = {
     '2023': {
         "auto": {
-            "ConeAttempts": "counter",
+            "ConeMisses": "counter",
             "ConeLow": "counter",
             "ConeMid": "counter",
             "ConeHigh": "counter",
-            "CubeAttempts": "counter",
+            "CubeMisses": "counter",
             "CubeLow": "counter",
             "CubeMid": "counter",
             "CubeHigh": "counter",
@@ -30,11 +30,11 @@ MATCH_SCHEME = {
             "Engaged": "toggle"
         },
         "teleop": {
-            "ConeAttempts": "counter",
+            "ConeMisses": "counter",
             "ConeLow": "counter",
             "ConeMid": "counter",
             "ConeHigh": "counter",
-            "CubeAttempts": "counter",
+            "CubeMisses": "counter",
             "CubeLow": "counter",
             "CubeMid": "counter",
             "CubeHigh": "counter",
@@ -50,6 +50,7 @@ MATCH_SCHEME = {
             "Defensive": "toggle",
             "DriverRating": "slider",
             "Fouls": "counter",
+            "Disqualified": "toggle",
             "DriverComments": "text",
             "RobotComments": "text"
         }
