@@ -10,15 +10,15 @@ from scoutingbackend.schemes import invert_alliance
 
 class Analysis2023(object):
     def __init__(self) -> None:
-        self.bp = flask.Blueprint('an', __name__, url_prefix='/analysis')
+        self.bp = flask.Blueprint('an', __name__, url_prefix='/analysis/2023')
         self.rest = flask_restful.Api(self.bp)
-        self.rest.add_resource(self.BestDefense, '/2023/<string:event>/bestDefense')
-        self.rest.add_resource(self.BestOffense, '/2023/<string:event>/bestOffense')
-        self.rest.add_resource(self.BestAuto, '/2023/<string:event>/bestAuto')
-        self.rest.add_resource(self.PickupLocations, '/2023/<string:event>/<integer:team>/pickup')
-        self.rest.add_resource(self.AveragePointsPerGame, '/2023/<string:event>/<integer:team>/points')
-        self.rest.add_resource(self.AutoScoring, '/2023/<string:event>/<integer:team>/autoScoring')
-    
+        self.rest.add_resource(self.BestDefense, '/<string:event>/bestDefense')
+        self.rest.add_resource(self.BestScoring, '/<string:event>/bestScoring')
+        self.rest.add_resource(self.BestAuto   , '/<string:event>/bestAuto'   )
+        self.rest.add_resource(self.PickupLocations, '/<string:event>/pickups')
+
+        self.rest.add_resource(self.AutoScoring, '/<string:event>/<integer:team>/autoScoring')
+
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
 
@@ -46,92 +46,67 @@ class Analysis2023(object):
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
             return dict(sorted(teams.items(), key=lambda item: item[1]))
     
-    class BestOffense(flask_restful.Resource):
+    class BestScoring(flask_restful.Resource):
         def get(self, event: str):
-            # c = db.connection().cursor()
-            # table = f"frc2023{event}_match"
-            # def k(team: str) -> float:
-            #     netscore = 0
-            #     total = 0
-            #     for row in c.execute(f"select * from {table} where teamNumber={team}").fetchall():
-            #         resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/match/2023{event}_{row['match']}")
-            #         if not resp.ok:
-            #             raise Exception(f"[Analysis] Request Error. "+resp.text)
-            #         matchinfo = resp.json()
-            #         alliance = [a for a in matchinfo["alliances"] if f"frc{row['teamNumber']}" in matchinfo["alliances"][a]["team_keys"]]
-            #         if len(alliance) != 1:
-            #             raise Exception(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
-            #         alliance = alliance[0]
-            #         driverskill = row["commentsDriverrating"]/(5*(row["commentsFouls"]+1)*(0.7 if row["commentsDefensive"] == 1 else 1))
-            #         3*total_score(row)/matchinfo["teleopPoints"]
-            #         netscore += driverskill*defensescore
-            #         total += 1
-            #     return netscore/total
-            return {}
+            c = db.connection().cursor()
+            table = f"frc2023{event}_match"
+            def k(team: str) -> float:
+                netscore = 0
+                total = 0
+                for row in c.execute(f"select * from {table} where teamNumber={team}").fetchall():
+                    resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/match/2023{event}_{row['match']}")
+                    if not resp.ok:
+                        raise Exception(f"[Analysis] Request Error. "+resp.text)
+                    matchinfo = resp.json()
+                    alliance = [a for a in matchinfo["alliances"] if f"frc{row['teamNumber']}" in matchinfo["alliances"][a]["team_keys"]]
+                    if len(alliance) != 1:
+                        raise Exception(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
+                    alliance = alliance[0]
+                    netscore += 3*total_points(row)/matchinfo["score_breakdown"][alliance]["totalPoints"]
+                    total += 1
+                return netscore/total
+            teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
+            return dict(sorted(teams.items(), key=lambda item: item[1]))
     
     class BestAuto(flask_restful.Resource):
         def get(self, event: str):
-            return {}
+            c = db.connection().cursor()
+            table = f"frc2023{event}_match"
+            def k(team: str) -> float:
+                netscore = 0
+                total = 0
+                for row in c.execute(f"select * from {table} where teamNumber={team}").fetchall():
+                    resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/match/2023{event}_{row['match']}")
+                    if not resp.ok:
+                        raise Exception(f"[Analysis] Request Error. "+resp.text)
+                    matchinfo = resp.json()
+                    alliance = [a for a in matchinfo["alliances"] if f"frc{row['teamNumber']}" in matchinfo["alliances"][a]["team_keys"]]
+                    if len(alliance) != 1:
+                        raise Exception(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
+                    alliance = alliance[0]
+                    netscore += 3*auto_points(row)/matchinfo["score_breakdown"][alliance]["autoPoints"]
+                    total += 1
+                return netscore/total
+            teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
+            return dict(sorted(teams.items(), key=lambda item: item[1]))
     
     class PickupLocations(flask_restful.Resource):
         def get(self, event: str, team: int):
-            cursor = db.connection().cursor()
-            table = f"frc2023{event}_match"
-            matches = cursor.execute(f"select * from {table} where teamNumber={team}").fetchall()
-
-            single_total = double_total = 0
-
-            for row in matches:
-                single_total += int(row["teleopIntakessingle"])
-                double_total += int(row["teleopIntakesdouble"])
-
-            return { "singlePercentage": single_total / len(matches), "doublePercentage": double_total / len(matches) }
-        
-    class AveragePointsPerGame(flask_restful.Resource):
-        SCORING_POINTS = { # Might move elsewhere
-            "autoConeLow"   : 3,
-            "autoConeMid"   : 4,
-            "autoConeHigh"  : 6,
-            "autoCubeLow"   : 3,
-            "autoCubeMid"   : 4,
-            "autoCubeHigh"  : 6,
-            "autoMobility"  : 3,
-            "autoDocked"    : 8,
-            "autoEngaged"   : 4,
-            "teleopConeLow" : 2,
-            "teleopConeMid" : 3,
-            "teleopConeHigh": 5,
-            "teleopCubeLow" : 2,
-            "teleopCubeMid" : 3,
-            "teleopCubeHigh": 5,
-            "endgameParked" : 2,
-            "endgameDocked" : 6,
-            "endgameEngaged": 4,
-        }
-
-        def get(self, event: str, team: int):
-            cursor = db.connection().cursor()
-            table = f"frc2023{event}_match"
-            matches = cursor.execute(f"select * from {table} where teamNumber={team}").fetchall()
-
-            score_total = 0
-
-            for row in matches:
-                for key in self.SCORING_POINTS.keys():
-                    score_total += int(row[key]) * self.SCORING_POINTS[key]
-
-            return { "score": score_total / len(matches) }
+            single = {}
+            double = {}
+            for row in db.connection().cursor().execute(f"select * from frc2023{event}_match where teamNumber={team}").fetchall():
+                tn = row["teamNumber"]
+                if tn not in single: single[tn] = 0
+                if tn not in double: double[tn] = 0
+                if row["teleopIntakessingle"]: single[tn]+=1
+                if row["teleopIntakesdouble"]: double[tn]+=1
+            return {
+                "single": [t for t in single.keys() if single[t] > double[t]*1.5],
+                "double": [t for t in double.keys() if double[t] > single[t]*1.5],
+                "both": [t for t in set(single.keys()).intersection(double.keys()) if single[t] <= double[t]*1.5 and double[t] <= single[t]*1.5]
+            }
     
     class AutoScoring(flask_restful.Resource):
-        AUTO_SCORING_POINTS = { # Might move elsewhere
-            "low"   : 3,
-            "mid"   : 4,
-            "high"  : 6,
-            "mobility"  : 3,
-            "docked"    : 8,
-            "engaged"   : 4,
-        }
-
         def get(self, event: str, team: int):
             cursor = db.connection().cursor()
             table = f"frc2023{event}_match"
@@ -163,3 +138,28 @@ class Analysis2023(object):
                 "cubePercentage": cube_percentage_total / len(matches),
                 "averageScore": score_total / len(matches),
             }
+
+SCORING_POINTS = {
+    "autoConeLow"   : 3,
+    "autoConeMid"   : 4,
+    "autoConeHigh"  : 6,
+    "autoCubeLow"   : 3,
+    "autoCubeMid"   : 4,
+    "autoCubeHigh"  : 6,
+    "autoMobility"  : 3,
+    "autoDocked"    : 8,
+    "autoEngaged"   : 4,
+    "teleopConeLow" : 2,
+    "teleopConeMid" : 3,
+    "teleopConeHigh": 5,
+    "teleopCubeLow" : 2,
+    "teleopCubeMid" : 3,
+    "teleopCubeHigh": 5,
+    "endgameParked" : 2,
+    "endgameDocked" : 6,
+    "endgameEngaged": 4,
+}
+def total_points(row):
+    return sum([SCORING_POINTS[k] for k in row.keys()])
+def auto_points(row):
+    return sum([SCORING_POINTS[k] for k in row.keys() if k.startswith("auto")])

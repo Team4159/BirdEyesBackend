@@ -18,25 +18,25 @@ MATCH_SCHEME = {
     '2023': {
         "auto": {
             "ConeMisses": "counter",
-            "ConeLow": "counter",
-            "ConeMid": "counter",
-            "ConeHigh": "counter",
             "CubeMisses": "counter",
+            "ConeLow": "counter",
             "CubeLow": "counter",
+            "ConeMid": "counter",
             "CubeMid": "counter",
+            "ConeHigh": "counter",
             "CubeHigh": "counter",
-            "Mobility": "toggle",
             "Docked": "toggle",
-            "Engaged": "toggle"
+            "Engaged": "toggle",
+            "Mobility": "toggle",
         },
         "teleop": {
             "ConeMisses": "counter",
-            "ConeLow": "counter",
-            "ConeMid": "counter",
-            "ConeHigh": "counter",
             "CubeMisses": "counter",
+            "ConeLow": "counter",
             "CubeLow": "counter",
+            "ConeMid": "counter",
             "CubeMid": "counter",
+            "ConeHigh": "counter",
             "CubeHigh": "counter",
             "IntakesSingle": "toggle",
             "IntakesDouble": "toggle"
