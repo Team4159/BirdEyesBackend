@@ -39,7 +39,7 @@ class Api(object):
                 return flask_restful.abort(400)
             event_name = flask.request.get_data().decode('utf8')
 
-            db.create_tables(str(season), event_name)
+            db.create_tables(season, event_name)
             return {}
 
     class ApiMSchema(flask_restful.Resource):
