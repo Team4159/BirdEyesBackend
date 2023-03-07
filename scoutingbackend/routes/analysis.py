@@ -17,7 +17,7 @@ class Analysis2023(object):
         self.rest.add_resource(self.BestAuto   , '/<string:event>/bestAuto'   )
         self.rest.add_resource(self.PickupLocations, '/<string:event>/pickups')
 
-        self.rest.add_resource(self.AutoScoring, '/<string:event>/<integer:team>/autoScoring')
+        self.rest.add_resource(self.AutoScoring, '/<string:event>/<int:team>/autoScoring')
 
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
