@@ -17,6 +17,7 @@ class Analysis2023(object):
         self.rest.add_resource(self.BestAuto, '/2023/<string:event>/bestAuto')
         self.rest.add_resource(self.PickupLocations, '/2023/<string:event>/<integer:team>/pickup')
         self.rest.add_resource(self.AveragePointsPerGame, '/2023/<string:event>/<integer:team>/points')
+        self.rest.add_resource(self.AutoScoring, '/2023/<string:event>/<integer:team>/autoScoring')
     
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
@@ -78,14 +79,13 @@ class Analysis2023(object):
             table = f"frc2023{event}_match"
             matches = cursor.execute(f"select * from {table} where teamNumber={team}").fetchall()
 
-            singleTotal = 0
-            doubleTotal = 0
+            single_total = double_total = 0
 
             for row in matches:
-                singleTotal += int(row["teleopIntakessingle"])
-                doubleTotal += int(row["teleopIntakesdouble"])
+                single_total += int(row["teleopIntakessingle"])
+                double_total += int(row["teleopIntakesdouble"])
 
-            return { "singlePercentage": singleTotal / len(matches), "doublePercentage": doubleTotal / len(matches) }
+            return { "singlePercentage": single_total / len(matches), "doublePercentage": double_total / len(matches) }
         
     class AveragePointsPerGame(flask_restful.Resource):
         SCORING_POINTS = { # Might move elsewhere
@@ -114,10 +114,39 @@ class Analysis2023(object):
             table = f"frc2023{event}_match"
             matches = cursor.execute(f"select * from {table} where teamNumber={team}").fetchall()
 
-            score = 0
+            score_total = 0
 
             for row in matches:
                 for key in self.SCORING_POINTS.keys():
-                    score += int(row[key]) * self.SCORING_POINTS[key]
+                    score_total += int(row[key]) * self.SCORING_POINTS[key]
 
-            return { "points": score / len(matches) }
+            return { "points": score_total / len(matches) }
+    
+    class AutoScoring(flask_restful.Resource):
+        def get(self, event: str, team: int):
+            cursor = db.connection().cursor()
+            table = f"frc2023{event}_match"
+            matches = cursor.execute(f"select * from {table} where teamNumber={team}").fetchall()
+
+            cone_low_total = cone_mid_total = cone_high_total = cone_percentage_total = cube_low_total = cube_mid_total = cube_high_total = cube_percentage_total = 0
+
+            for row in matches:
+                cone_low_total += row["autoConelow"]
+                cone_mid_total += row["autoConemid"]
+                cone_high_total += row["autoConehigh"]
+                cone_percentage_total += (row["autoConelow"] + row["autoConemid"] + row["autoConehigh"]) / (row["autoConeAttempts"] + row["autoConelow"] + row["autoConemid"] + row["autoConehigh"])
+                cube_low_total += row["autoCubelow"]
+                cube_mid_total += row["autoCubemid"]
+                cube_high_total += row["autoCubehigh"]
+                cube_percentage_total += (row["autoCubelow"] + row["autoCubemid"] + row["autoCubehigh"]) / (row["autoCubeAttempts"] + row["autoCubelow"] + row["autoCubemid"] + row["autoCubehigh"])
+
+            return {
+                "averageConeLow": cone_low_total / len(matches),
+                "averageConeMid": cone_mid_total / len(matches),
+                "averageConeHigh": cone_high_total / len(matches),
+                "conePercentage": cone_percentage_total / len(matches),
+                "averageCubeLow": cube_low_total / len(matches),
+                "averageCubeMid": cube_mid_total / len(matches),
+                "averageCubeHigh": cube_high_total / len(matches),
+                "cubePercentage": cube_percentage_total / len(matches)
+            }
