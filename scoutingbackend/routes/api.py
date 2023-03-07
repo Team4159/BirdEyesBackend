@@ -1,12 +1,13 @@
 import json
 import sqlite3  # typing only
+import typing
 
 import flask
-import typing
 import flask_restful
 
 from .. import schemes
 from ..database import db, generate_selector
+
 
 class Api(object):
     def __init__(self) -> None:

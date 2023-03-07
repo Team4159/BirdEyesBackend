@@ -10,6 +10,7 @@ import flask
 import flask_restful
 import requests
 import werkzeug.datastructures
+from ..database import db
 
 
 class CachingSession(requests.Session):
@@ -125,3 +126,17 @@ class BlueAlliance(object):
                 for teamCode in allianceData['team_keys']:
                     o[teamCode[3:]] = alliance
             return o
+    
+    class BAAuto(flask_restful.Resource):
+        def get(self, season: int, event: str):
+            #no *match since kind of a bad idea to pull EVERYTHING
+            resp = session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/matches", cache_control=flask.request.cache_control)
+            data = resp.json()
+            for match in data:
+                cur = db.cursor()
+                for team_key in match["red"]["team_keys"]:
+                    data = {
+                        "teamNumber": int(team_key.ltrip("frc")),
+                        #TODO: THIS
+                    }
+                    cmd = f"INSERT INTO frc{season}{event}_match () "
