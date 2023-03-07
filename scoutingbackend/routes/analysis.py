@@ -16,6 +16,7 @@ class Analysis2023(object):
         self.rest.add_resource(self.BestOffense, '/2023/<string:event>/bestOffense')
         self.rest.add_resource(self.BestAuto, '/2023/<string:event>/bestAuto')
         self.rest.add_resource(self.PickupLocations, '/2023/<string:event>/pickup')
+        self.rest.add_resource(self.AveragePointsPerGame, '/2023/<string:event>/<integer:team>/points')
     
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
@@ -74,3 +75,38 @@ class Analysis2023(object):
     class PickupLocations(flask_restful.Resource):
         def get(self, event: str):
             return {}
+        
+    class AveragePointsPerGame(flask_restful.Resource):
+        SCORING_POINTS = { # Might move elsewhere
+            "autoConeLow"   : 3,
+            "autoConeMid"   : 4,
+            "autoConeHigh"  : 6,
+            "autoCubeLow"   : 3,
+            "autoCubeMid"   : 4,
+            "autoCubeHigh"  : 6,
+            "autoMobility"  : 3,
+            "autoDocked"    : 8,
+            "autoEngaged"   : 4,
+            "teleopConeLow" : 2,
+            "teleopConeMid" : 3,
+            "teleopConeHigh": 5,
+            "teleopCubeLow" : 2,
+            "teleopCubeMid" : 3,
+            "teleopCubeHigh": 5,
+            "endgameParked" : 2,
+            "endgameDocked" : 6,
+            "endgameEngaged": 4,
+        }
+
+        def get(self, event: str, team: int):
+            score = 0
+
+            cursor = db.connection().cursor()
+            table = f"frc2023{event}_match"
+            matches = cursor.execute(f"select * from {table} where teamNumber={team}").fetchall()
+
+            for row in matches:
+                for key in self.SCORING_POINTS.keys():
+                    score += int(row[key]) * self.SCORING_POINTS[key]
+
+            return { "points": score / len(matches) }
