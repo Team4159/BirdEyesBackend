@@ -4,7 +4,7 @@ import flask
 import flask_cors
 
 from scoutingbackend.database import db
-from scoutingbackend.routes import api, bluealliance, analysis
+from scoutingbackend.routes import api, bluealliance, analysis, graphics
 
 
 def create_app():
@@ -28,6 +28,8 @@ def create_app():
         an = analysis.Analysis2023()
         an.register(a.bp)
         a.register(app)
+        g = graphics.Graphics2023(app.config['MANUAL_CACHE'])
+        g.register(app)
         
     @app.route('/')
     def test(): return "BirdsEye Scouting Server Online!"

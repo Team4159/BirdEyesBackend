@@ -63,11 +63,15 @@ class Api(object):
                 return flask_restful.abort(400, description="Missing Required Fields")
             
             c = db.connection()
+            if f"frc{season}{event}_pit" not in [e['name'] for e in c.execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
+                return flask.Response("table not exist", 404)
             c.execute( f"INSERT INTO frc{season}{event}_pit ({', '.join(input_data.keys())}) VALUES ({('?, '*len(input_data)).rstrip(', ')})", tuple(input_data.values()))
             c.commit()
             return {"description": "Success!", "teamNumber": input_data['teamNumber']}
             
         def get(self, season, event):
+            if f"frc{season}{event}_pit" not in [e['name'] for e in db.connection().cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
+                return flask.Response("table not exist", 404)
             values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_pit {generate_selector(flask.request.args)}")
             if not values:
                 return flask_restful.abort(404)
@@ -76,7 +80,7 @@ class Api(object):
     class ApiMatch(flask_restful.Resource):
         def post(self, season: int, event: str):
             input_data = flask.request.get_json(force=True)
-            if not input_data or input_data["teamNumber"] is None or input_data["name"] is None or input_data["form"] is None:
+            if not input_data or input_data["teamNumber"] is None or input_data["name"] is None:
                 return flask_restful.abort(400, description="Missing Required Fields")
             submit_data = {}
             for key, value in input_data.items():
@@ -87,11 +91,15 @@ class Api(object):
                     submit_data[key] = value
 
             c = db.connection()
+            if f"frc{season}{event}_match" not in [e['name'] for e in c.execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
+                return flask.Response("table not exist", 404)
             c.cursor().execute(f"INSERT INTO frc{season}{event}_match ({', '.join(submit_data.keys())}) VALUES ({('?, '*len(submit_data)).rstrip(', ')})", tuple(submit_data.values()))
             c.commit()
             return {"description": "Success!", "teamNumber": input_data['teamNumber'], "match": input_data['match']}
         
         def get(self, season: int, event: str):
+            if f"frc{season}{event}_match" not in [e['name'] for e in db.connection().cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
+                return flask.Response("table not exist", 404)
             values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_match {generate_selector(flask.request.args)}")
             if not values:
                 return flask_restful.abort(404)
