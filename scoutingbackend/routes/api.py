@@ -1,6 +1,8 @@
 import json
 import sqlite3  # typing only
 import typing
+from io import StringIO
+import csv
 
 import flask
 import flask_restful
@@ -22,6 +24,7 @@ class Api(object):
         self.rest.add_resource(self.ApiPSchema, '/<int:season>/pitschema')
         self.rest.add_resource(self.ApiPit, '/<int:season>/<string:event>/pit')
         self.rest.add_resource(self.ApiMatch, '/<int:season>/<string:event>/match')
+        self.rest.add_resource(self.ApiCsvMatch, '/<int:season>/<string:event>/matchcsv')
     
         self.list = self.ApiList()
         self.create = self.ApiCreate()
@@ -29,6 +32,7 @@ class Api(object):
         self.pit_schema = self.ApiPSchema()
         self.match = self.ApiMatch()
         self.pit = self.ApiPit()
+        self.csv_match = self.ApiCsvMatch()
     
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
@@ -111,3 +115,15 @@ class Api(object):
             if not values:
                 return flask_restful.abort(404)
             return [dict(scout) for scout in values.fetchall()]
+        
+    class ApiCsvMatch(flask_restful.Resource):
+        def get(self, season: int, event: str):
+            if f"frc{season}{event}_match" not in [e['name'] for e in db.connection().cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
+                return flask.Response("table not exist", 404)
+            print(generate_selector(flask.request.args))
+            data = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_match {generate_selector(flask.request.args)}")
+            output_io = StringIO()
+            writer = csv.writer(output_io)
+            writer.writerows(data)
+            output_io.seek(0)
+            return flask.Response(output_io.read(), 200, mimetype='text/csv')

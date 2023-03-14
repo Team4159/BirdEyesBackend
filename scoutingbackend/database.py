@@ -37,4 +37,4 @@ def flatten(scheme: dict[str, dict[str, str]]) -> dict[str, str]:
     return out
 
 def generate_selector(argdict: dict):
-    return ("WHERE "+" AND ".join([f"{k}={v}" for k,v in argdict.items() if not v == None])) if len(argdict) > 0 else ""
+    return ("WHERE "+" AND ".join([f"{k}=\"{v}\"" for k,v in argdict.items() if not v == None])) if len(argdict) > 0 else ""
