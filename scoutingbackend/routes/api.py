@@ -1,4 +1,5 @@
 import json
+import sqlite3  # typing only
 import typing
 
 import flask
@@ -7,10 +8,9 @@ import flask_restful
 from .. import schemes
 from ..database import db, generate_selector
 
-def merge_dictlike(d1: dict, d2: dict) -> dict:
-    d1 = dict(d1)
-    d1.update(d2)
-    return d2
+from scoutingbackend import schemes
+from scoutingbackend.database import db, generate_selector
+
 
 class Api(object):
     def __init__(self) -> None:
@@ -35,7 +35,7 @@ class Api(object):
 
     class ApiList(flask_restful.Resource):
         def get(self, season: int):
-            tables = db.cursor().execute("SELECT name from sqlite_master WHERE type='table'").fetchall()
+            tables = db.connection().cursor().execute("SELECT name from sqlite_master WHERE type='table'").fetchall()
             return [event['name'] for event in tables if event['name'].startswith(f'frc{season}')]
 
     class ApiCreate(flask_restful.Resource):
@@ -46,10 +46,7 @@ class Api(object):
                 return flask_restful.abort(400)
             event_name = flask.request.get_data().decode('utf8')
 
-            cur = db.cursor()
-            e, p = schemes.generate_table_schemas(str(season), event_name)
-            cur.executescript(e).executescript(p)
-            db.connection().commit()
+            db.create_tables(season, event_name)
             return {}
 
     class ApiMSchema(flask_restful.Resource):
@@ -72,18 +69,17 @@ class Api(object):
             if input_data["teamNumber"] is None or input_data["name"] is None:
                 return flask_restful.abort(400, description="Missing Required Fields")
             
-            query = f"INSERT INTO frc{season}{event}_pit ({', '.join(input_data.keys())}) VALUES ({('?, '*len(input_data)).rstrip(', ')})"
             c = db.connection()
-            c.execute(query, tuple(input_data.values()))
+            if f"frc{season}{event}_pit" not in [e['name'] for e in c.execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
+                return flask.Response("table not exist", 404)
+            c.execute( f"INSERT INTO frc{season}{event}_pit ({', '.join(input_data.keys())}) VALUES ({('?, '*len(input_data)).rstrip(', ')})", tuple(input_data.values()))
             c.commit()
             return {"description": "Success!", "teamNumber": input_data['teamNumber']}
             
         def get(self, season, event):
-            query = "SELECT * FROM {event_id}_pit {query}".format(
-                event_id=f"frc{season}{event}",
-                query=generate_selector(merge_dictlike(flask.request.args, flask.g.args) if hasattr(flask.g, 'args') else flask.request.args)
-            )
-            values = db.cursor().execute(query)
+            if f"frc{season}{event}_pit" not in [e['name'] for e in db.connection().cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
+                return flask.Response("table not exist", 404)
+            values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_pit {generate_selector(flask.request.args)}")
             if not values:
                 return flask_restful.abort(404)
             return [dict(scout) for scout in values.fetchall()]
@@ -91,30 +87,27 @@ class Api(object):
     class ApiMatch(flask_restful.Resource):
         def post(self, season: int, event: str):
             input_data = flask.request.get_json(force=True)
-            if not input_data or input_data["teamNumber"] is None or input_data["name"] is None or input_data["form"] is None:
+            if not input_data or input_data["teamNumber"] is None or input_data["name"] is None:
                 return flask_restful.abort(400, description="Missing Required Fields")
             submit_data = {}
-            for key, value in input_data["form"].items():
+            for key, value in input_data.items():
                 if isinstance(value, dict): #nested dictionary
                     for key1, value1 in value.items():
-                        #str.capitalize() and str.title() don't work because they uncapitalize the rest of the string
                         submit_data[key+key1[0].upper()+key1[1:]] = value1
-                else: #just a key and value
+                else:
                     submit_data[key] = value
 
-            query = f"INSERT INTO frc{season}{event}_match ({', '.join(submit_data.keys())}) VALUES ({('?, '*len(submit_data)).rstrip(', ')})"
             c = db.connection()
-            #the cursor() function seems unnessecary, but connection.execute is not standard and may not work with different database libraries with a similar api
-            c.cursor().execute(query, tuple(submit_data.values()))
+            if f"frc{season}{event}_match" not in [e['name'] for e in c.execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
+                return flask.Response("table not exist", 404)
+            c.cursor().execute(f"INSERT INTO frc{season}{event}_match ({', '.join(submit_data.keys())}) VALUES ({('?, '*len(submit_data)).rstrip(', ')})", tuple(submit_data.values()))
             c.commit()
             return {"description": "Success!", "teamNumber": input_data['teamNumber'], "match": input_data['match']}
         
         def get(self, season: int, event: str):
-            query = "SELECT * FROM {event_id}_match {query}".format(
-                event_id=f"frc{season}{event}",
-                query=generate_selector(merge_dictlike(flask.request.args, flask.g.args) if hasattr(flask.g, 'args') else flask.request.args)
-            )
-            values = db.cursor().execute(query)
+            if f"frc{season}{event}_match" not in [e['name'] for e in db.connection().cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
+                return flask.Response("table not exist", 404)
+            values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_match {generate_selector(flask.request.args)}")
             if not values:
                 return flask_restful.abort(404)
             return [dict(scout) for scout in values.fetchall()]

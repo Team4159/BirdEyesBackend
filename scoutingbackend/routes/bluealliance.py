@@ -1,74 +1,15 @@
 import datetime
-import json
-import os
-import pathlib
-import time
 import typing
-import urllib.parse
 
 import flask
 import flask_restful
-import requests
-import werkzeug.datastructures
 
-from ..database import db
+from scoutingbackend.cachingsession import get_with_cache, session
+from scoutingbackend.database import db
 
-
-class CachingSession(requests.Session):
-    def __init__(self, manual_cache: typing.Union[os.PathLike, str, None] = None) -> None:
-        super().__init__()
-        if manual_cache:
-            self.cache_path = pathlib.Path(manual_cache)
-        else:
-            self.cache_path = None
-    
-    def set_manual_cache(self, manual_cache: typing.Union[os.PathLike, str]):
-        self.cache_path = pathlib.Path(manual_cache)
-    
-    def generate_response(self, data: bytes, code: int = 200):
-        '''Generates a semi-fake requests response'''
-        resp = requests.Response()
-        resp.status_code = code
-        resp._content = data
-        return resp
-    
-    def get(self, url: str, cache_control: typing.Union[werkzeug.datastructures.RequestCacheControl, None] = None, **kwargs) -> requests.Response:
-        parsed_url = urllib.parse.urlparse(url)
-        if 'thebluealliance.com' not in parsed_url.netloc: #not BA
-            return super().get(url, **kwargs)
-        if not self.cache_path or not cache_control: #cache not enabled #DO NOT MERGE INTO THE TOP STATEMENT, IT IS SPLIT FOR READABILITY
-            return super().get(url, **kwargs)
-        path_list = parsed_url.path.split("/")[3:]
-        cache_path = pathlib.Path(self.cache_path, *path_list[:-1], f"{path_list[-1]}.json")
-        if cache_path.exists() and not cache_control.no_cache:
-            cache_json = json.loads(cache_path.read_text())
-            real_data = json.dumps(cache_json['data']).encode('utf8')
-            if 'last-update' in cache_json and (cache_control.max_age is None or time.time() - cache_json['last-update'] <= cache_control.max_age):
-                return self.generate_response(real_data, code=cache_json['code'] if 'code' in cache_json else 200)
-            #if the response isn't new enough let the if-statement fall back to manually requesting and caching
-        resp = super().get(url, **kwargs)
-        if cache_control.no_store or not self.cache_path.is_dir():
-            return resp
-        cached_data = {
-            "last-update": time.time(),
-            "code": resp.status_code,
-            "data": resp.json()
-        }
-        cache_path.parent.mkdir(parents=True, exist_ok=True)
-        cache_path.write_text(json.dumps(cached_data))
-        return resp
-
-session = CachingSession() #SHOULD REALLY BE A CONTEXT-SENSITIVE VARIABLE BUT WHATEVER
-
-def get_special_args(key: str, default: str = '') -> str:
-    if hasattr(flask.g, 'args') and key in flask.g.args:
-        return flask.g.args[key]
-    else:
-        return flask.request.args.get(key, default=default)
 
 class BlueAlliance(object):
     def __init__(self, api_key: str) -> None:
-        #session.set(requests.Session()) #change me with custom cacher
         session.headers['X-TBA-Auth-Key'] = api_key
         
         self.bp = flask.Blueprint('ba', __name__, url_prefix='/bluealliance')
@@ -95,7 +36,7 @@ class BlueAlliance(object):
     
     class BAIndex(flask_restful.Resource):
         def get(self):
-            resp = session.get("https://www.thebluealliance.com/api/v3/status", cache_control=flask.request.cache_control)
+            resp = get_with_cache("https://www.thebluealliance.com/api/v3/status")
             if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             j = resp.json()
@@ -103,9 +44,8 @@ class BlueAlliance(object):
             
     class BASeason(flask_restful.Resource):
         def get(self, season: int):
-            
-            ignore_date = get_special_args('ignoreDate', 'false').lower()=="true"
-            resp = session.get(f"https://www.thebluealliance.com/api/v3/events/{season}/simple", cache_control=flask.request.cache_control)
+            ignore_date = flask.request.args.get('ignoreDate', "false").lower()=="true"
+            resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/events/{season}/simple")
             if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             j = resp.json()
@@ -113,7 +53,7 @@ class BlueAlliance(object):
     
     class BAEvent(flask_restful.Resource):
         def get(self, season: int, event: str):
-            resp = session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/matches/simple", cache_control=flask.request.cache_control)
+            resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/matches/simple")
             if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             j = resp.json()
@@ -122,20 +62,20 @@ class BlueAlliance(object):
     class BAMatch(flask_restful.Resource):
         def get(self, season: int, event: str, match: str):
             if match == "*":
-                resp = session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/teams/keys", cache_control=flask.request.cache_control)
+                resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/teams/keys")
                 if not resp.ok:
                     return flask_restful.abort(resp.status_code)
                 
                 if flask.request.args.get("onlyUnfilled", "false") == "true":
                     try:
-                        scoutedlist = [t['teamNumber'] for t in db.cursor().execute(f"SELECT (teamNumber) FROM frc{season}{event}_pit").fetchall()]
+                        scoutedlist = [t['teamNumber'] for t in db.connection().cursor().execute(f"SELECT (teamNumber) FROM frc{season}{event}_pit").fetchall()]
                     except:
                         scoutedlist = []
                     full_list = [int(team_code[3:]) for team_code in resp.json()]
                     return list(set(full_list).difference(scoutedlist))
                 else:
                     return {team_code[3:]: "*" for team_code in resp.json()}
-            resp = session.get(f"https://www.thebluealliance.com/api/v3/match/{season}{event}_{match}/simple", cache_control=flask.request.cache_control)
+            resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/match/{season}{event}_{match}/simple")
             if not resp.ok:
                 return flask_restful.abort(resp.status_code)
             j = resp.json()
@@ -146,3 +86,17 @@ class BlueAlliance(object):
                 for teamCode in allianceData['team_keys']:
                     o[teamCode[3:]] = alliance
             return o
+    
+    class BAAuto(flask_restful.Resource):
+        def get(self, season: int, event: str):
+            #no *match since kind of a bad idea to pull EVERYTHING
+            resp = session.get(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/matches", cache_control=flask.request.cache_control)
+            data = resp.json()
+            for match in data:
+                cur = db.connection().cursor()
+                for team_key in match["red"]["team_keys"]:
+                    data = {
+                        "teamNumber": int(team_key.ltrip("frc")),
+                        #TODO: THIS
+                    }
+                    cmd = f"INSERT INTO frc{season}{event}_match () "

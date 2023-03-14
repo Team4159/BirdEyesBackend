@@ -4,8 +4,8 @@ import flask
 import flask_cors
 import typing
 
-from .database import db
-from .routes import api, bluealliance
+from scoutingbackend.database import db
+from scoutingbackend.routes import api, bluealliance, analysis, graphics
 
 def create_app():
     app = flask.Flask(__name__, instance_relative_config=True)
@@ -23,9 +23,13 @@ def create_app():
         bluealliance.session.set_manual_cache(app.config['MANUAL_CACHE'])
         app.context_processor
         a = api.Api()
-        ba = bluealliance.BlueAlliance(app.config['TBA_KEY'])
+        ba = bluealliance.BlueAlliance(app.config["TBA_KEY"])
         ba.register(a.bp)
+        an = analysis.Analysis2023()
+        an.register(a.bp)
         a.register(app)
+        g = graphics.Graphics2023(app.config['MANUAL_CACHE'])
+        g.register(app)
         
         # type checkers complain here but that's what python is about
         # if you want to access bluealliance functions (WARNING: may work slightly funny), you can now use current_app.api/current_app.bluealliance.xyz
