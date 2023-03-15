@@ -33,7 +33,7 @@ def flatten(scheme: dict[str, dict[str, str]]) -> dict[str, str]:
     out = {}
     for k, v in scheme.items():
         for k1, v1 in v.items():
-            out[k+k1.capitalize()] = schemes.MATCH_SCHEME_DATATYPES[v1]
+            out[k+k1[0].upper()+k1[1:]] = schemes.MATCH_SCHEME_DATATYPES[v1]
     return out
 
 def generate_selector(argdict: dict):

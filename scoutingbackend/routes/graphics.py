@@ -1,15 +1,13 @@
-import json
-import os
-import sqlite3  # typing only
-import typing
-import pathlib
 import itertools
+import os
+import pathlib
+import typing
 
 import flask
 import flask_restful
 
-from .. import schemes
-from ..database import db, generate_selector
+from scoutingbackend.database import db
+
 
 class Graphics2023(object):
     cache: typing.Optional[pathlib.Path] = None

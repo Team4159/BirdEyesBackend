@@ -11,19 +11,19 @@ from scoutingbackend.database import db
 class BlueAlliance(object):
     def __init__(self, api_key: str) -> None:
         session.headers['X-TBA-Auth-Key'] = api_key
-        
         self.bp = flask.Blueprint('ba', __name__, url_prefix='/bluealliance')
+        
         self.rest = flask_restful.Api(self.bp)
         self.rest.add_resource(self.BAIndex, '/')
         self.rest.add_resource(self.BASeason, '/<int:season>')
         self.rest.add_resource(self.BAEvent, '/<int:season>/<string:event>')
         self.rest.add_resource(self.BAMatch, '/<int:season>/<string:event>/<string:match>')
-        
+
         self.index = self.BAIndex()
-        self.season = self.BASeason()
+        self.season= self.BASeason()
         self.event = self.BAEvent()
         self.match = self.BAMatch()
-    
+        
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
     
