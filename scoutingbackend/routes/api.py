@@ -47,7 +47,7 @@ class Api(object):
             if str(season) not in schemes.MATCH_SCHEME or str(season) not in schemes.PIT_SCHEME:
                 return flask_restful.abort(400, description="Invalid Season!")
             if not flask.request.get_data():
-                return flask_restful.abort(400)
+                return flask_restful.abort(400, description="No event set")
             event_name = flask.request.get_data().decode('utf8')
 
             db.create_tables(season, event_name)
@@ -121,9 +121,13 @@ class Api(object):
             if f"frc{season}{event}_match" not in [e['name'] for e in db.connection().cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
                 return flask.Response("table not exist", 404)
             print(generate_selector(flask.request.args))
-            data = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_match {generate_selector(flask.request.args)}")
+            data = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_match {generate_selector(flask.request.args)}").fetchall()
             output_io = StringIO()
+            
             writer = csv.writer(output_io)
-            writer.writerows(data)
+            try:
+                writer.writerows([list(data[0].keys())]+data)
+            except IndexError:
+                return flask_restful.abort(406, description="no data is available", tip="did you make sure the filters were correct?")
             output_io.seek(0)
             return flask.Response(output_io.read(), 200, mimetype='text/csv')

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+    <style>
+      .formInput {
+        display: table;
+      }
+      .formRow {
+        display: table-row;
+      }
+      input {
+        display: table-cell;
+      }
+      label {
+        display: table-cell;
+      }
+    </style>
+    <script>
+      window.onload = function() {
+        document.getElementById("year").setAttribute("value", new Date().getFullYear());
+      }
+      function assert() {
+        var serverIp = document.getElementById("server").value;
+        var year = document.getElementById("year").value;
+        var eventCode = document.getElementById("event").value;
+        if (!serverIp || !year || !eventCode) {
+          alert("Missing required fields");
+          return false;
+        }
+        return true;
+      }
+      function setupDB() {
+        if (!assert()) return;
+        var serverIp = document.getElementById("server").value;
+        var year = document.getElementById("year").value;
+        var eventCode = document.getElementById("event").value;
+        var req = new XMLHttpRequest();
+        req.open("PUT", `http://${serverIp}/api/${year}/createEvent`);
+        req.setRequestHeader('Access-Control-Allow-Origin', '*');
+        req.send(eventCode);
+        req.onreadystatechange = function() {
+          if (this.readyState != this.DONE) return;
+          if (this.status != 200) {
+            alert(`Error code ${this.status}: ${this.response}`)
+          } else {
+            alert("Successfully created event")
+          }
+        }
+      }
+      function downloadCSV() {
+        if (!assert()) return;
+        var serverIp = document.getElementById("server").value;
+        var year = document.getElementById("year").value;
+        var eventCode = document.getElementById("event").value;
+        window.open(`http://${serverIp}/api/${year}/${eventCode}/matchcsv`);
+      }
+      function downloadTeam() {
+        if (!assert()) return;
+        var serverIp = document.getElementById("server").value;
+        var year = document.getElementById("year").value;
+        var eventCode = document.getElementById("event").value;
+        var teamno = document.getElementById("teamno").value;
+        if (!teamno) {
+          alert("Team number not specified")
+        } else {
+          window.open(`http://${serverIp}/api/${year}/${eventCode}/matchcsv?teamNumber=${teamno}`);
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header>
+      <h1>
+        BirdsEye Admin Panel
+      </h1>
+    </header>
+    <main>
+      <div class="formInput">
+        <div class="formRow">
+          <label for="server">Server IP (usually ignore)</label>
+          <input id="server" type="text" value="scouting.team4159.org"> <!--set value in js as current year-->
+        </div>
+        <div class="formRow">
+          <label for="year">Year</label>
+          <input id="year" type="number" min="2000" value=""> <!--set value in js as current year-->
+        </div>
+        <div class="formRow">
+          <label for="event">Event Code</label>
+          <input id="event" type="text" placeholder="casf">
+        </div>
+        <div class="formRow">
+          <label for="teamno">Team Number (usually optional)</label>
+          <input id="teamno" type="number" value="4159">
+        </div>
+      </div>
+      </br>
+      <button onclick="setupDB()" title="Sets up database for the event">Create event</button></br>
+      <button onclick="downloadCSV()" title="CSV file for use in Excel">Download human-readable event database</button></br>
+      <button onclick="downloadTeam()" title="CSV file for use in Excel">Download human-readable event database (specific team only)</button></br>
+    </main>
+    <footer>
+      <sub>To be used just in case/for setup/etc</sub>
+    </footer>
+  </body>
+</html>

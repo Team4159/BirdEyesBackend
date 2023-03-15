@@ -54,5 +54,9 @@ def create_app():
         flask.g.args = {'teamNumber': 4159}
         o['c'] = flask.current_app.api.pit.get(2023, 'casf') #type:ignore
         return o
+
+    @app.route('/admin')
+    def admin():
+        return flask.send_file('static/admin.html')
     
     return app
