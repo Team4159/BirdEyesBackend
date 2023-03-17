@@ -46,7 +46,7 @@ class Analysis2023(object):
                     defensescore= matchinfo["score_breakdown"][alliance]["foulPoints"]-matchinfo["score_breakdown"][invert_alliance[alliance]]["teleopPoints"]
                     netscore += driverskill*defensescore
                     total += 1
-                return netscore/total
+                return netscore/total if total > 0 else 0
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
             teams = dict(sorted(teams.items(), key=lambda item: item[1]))
             if flask.request.args.get("csv", "false") == "false":
@@ -76,7 +76,7 @@ class Analysis2023(object):
                     alliance = alliance[0]
                     netscore += 3*total_points(row)/matchinfo["score_breakdown"][alliance]["totalPoints"]
                     total += 1
-                return netscore/total
+                return netscore/total if total > 0 else 0
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
             teams = dict(sorted(teams.items(), key=lambda item: item[1]))
             if flask.request.args.get("csv", "false") == "false":
@@ -106,7 +106,7 @@ class Analysis2023(object):
                     alliance = alliance[0]
                     netscore += 3*auto_points(row)/matchinfo["score_breakdown"][alliance]["autoPoints"]
                     total += 1
-                return netscore/total
+                return netscore/total if total > 0 else 0
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
             teams = dict(sorted(teams.items(), key=lambda item: item[1]))
             if flask.request.args.get("csv", "false") == "false":
@@ -136,7 +136,7 @@ class Analysis2023(object):
                     alliance = alliance[0]
                     netscore += 3*teleop_points(row)/matchinfo["score_breakdown"][alliance]["teleopPoints"]
                     total += 1
-                return netscore/total
+                return netscore/total if total > 0 else 0
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
             teams = dict(sorted(teams.items(), key=lambda item: item[1]))
             if flask.request.args.get("csv", "false") == "false":
@@ -164,9 +164,9 @@ class Analysis2023(object):
                     if len(alliance) != 1:
                         raise Exception(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
                     alliance = alliance[0]
-                    netscore += 3*endgame_points(row)/matchinfo["score_breakdown"][alliance]["endgamePoints"]
+                    netscore += 3*endgame_points(row)/(matchinfo["score_breakdown"][alliance]["endGameParkPoints"]+matchinfo["score_breakdown"][alliance]["endGameChargeStationPoints"])
                     total += 1
-                return netscore/total
+                return netscore/total if total > 0 else 0
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
             teams = dict(sorted(teams.items(), key=lambda item: item[1]))
             if flask.request.args.get("csv", "false") == "false":
