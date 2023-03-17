@@ -37,7 +37,7 @@
         var year = document.getElementById("year").value;
         var eventCode = document.getElementById("event").value;
         var req = new XMLHttpRequest();
-        req.open("PUT", `http://${serverIp}/api/${year}/createEvent`);
+        req.open("PUT", `${location.protocol}//${serverIp}/api/${year}/createEvent`);
         req.setRequestHeader('Access-Control-Allow-Origin', '*');
         req.send(eventCode);
         req.onreadystatechange = function() {
@@ -54,7 +54,7 @@
         var serverIp = document.getElementById("server").value;
         var year = document.getElementById("year").value;
         var eventCode = document.getElementById("event").value;
-        window.open(`http://${serverIp}/api/${year}/${eventCode}/matchcsv`);
+        window.open(`${location.protocol}//${serverIp}/api/${year}/${eventCode}/matchcsv`);
       }
       function downloadTeam() {
         if (!assert()) return;
@@ -65,7 +65,7 @@
         if (!teamno) {
           alert("Team number not specified")
         } else {
-          window.open(`http://${serverIp}/api/${year}/${eventCode}/matchcsv?teamNumber=${teamno}`);
+          window.open(`${location.protocol}//${serverIp}/api/${year}/${eventCode}/matchcsv?teamNumber=${teamno}`);
         }
       }
     </script>
