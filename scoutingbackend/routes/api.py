@@ -1,3 +1,5 @@
+import csv
+from io import StringIO
 import json
 import typing
 
@@ -19,6 +21,7 @@ class Api(object):
         self.rest.add_resource(self.ApiPSchema, '/<int:season>/pitschema')
         self.rest.add_resource(self.ApiMatch, '/<int:season>/<string:event>/match')
         self.rest.add_resource(self.ApiPit, '/<int:season>/<string:event>/pit')
+        self.rest.add_resource(self.ApiCsvMatch, '/<int:season>/<string:event>/matchcsv')
         
         self.list = self.ApiList()
         self.create = self.ApiCreate()
@@ -108,3 +111,18 @@ class Api(object):
             if not values:
                 return flask_restful.abort(404)
             return [dict(scout) for scout in values.fetchall()]
+    
+    class ApiCsvMatch(flask_restful.Resource): #this is to be kept for emergency purposes, e.g. something goes wrong with analysis or if we just want a full look at all of the data
+        def get(self, season: int, event: str):
+            if f"frc{season}{event}_match" not in [e['name'] for e in db.connection().cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
+                return flask.Response("table not exist", 404)
+            print(generate_selector(flask.request.args))
+            data = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_match {generate_selector(flask.request.args)}").fetchall()
+            output_io = StringIO()
+
+            writer = csv.writer(output_io)
+            try:
+                writer.writerows([list(data[0].keys())]+data)
+            except IndexError:
+                return flask_restful.abort(406, description="no data is available", tip="did you make sure the filters were correct?")
+            return flask.Response(output_io.getvalue(), 200, mimetype='text/csv')
