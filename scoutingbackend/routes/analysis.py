@@ -28,7 +28,7 @@ class Analysis2023(object):
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
 
-    class BestDefense(flask_restful.Resource):
+    class BestDefense(flask_restful.Resource): #No way to make unweighted since kind of arbitrary
         def get(self, event: str):
             c = db.connection().cursor()
             table = f"frc2023{event}_match"
@@ -42,7 +42,8 @@ class Analysis2023(object):
                     matchinfo = resp.json()
                     alliance = [a for a in matchinfo["alliances"] if f"frc{row['teamNumber']}" in matchinfo["alliances"][a]["team_keys"]]
                     if len(alliance) != 1:
-                        raise Exception(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
+                        print(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
+                        continue
                     alliance = alliance[0]
                     driverskill = row["commentsDriverrating"]/(5*(row["commentsFouls"]+1)*(0.7 if row["commentsDefensive"] == 1 else 1))
                     defensescore= matchinfo["score_breakdown"][alliance]["foulPoints"]-matchinfo["score_breakdown"][invert_alliance[alliance]]["teleopPoints"]
@@ -64,8 +65,9 @@ class Analysis2023(object):
         def get(self, event: str):
             c = db.connection().cursor()
             table = f"frc2023{event}_match"
-            def k(team: str) -> float:
+            def k(team: str) -> dict[str, float]:
                 netscore = 0
+                rawscore = 0
                 total = 0
                 for row in c.execute(f"select * from {table} where teamNumber={team}").fetchall():
                     resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/match/2023{event}_{row['match']}")
@@ -74,28 +76,32 @@ class Analysis2023(object):
                     matchinfo = resp.json()
                     alliance = [a for a in matchinfo["alliances"] if f"frc{row['teamNumber']}" in matchinfo["alliances"][a]["team_keys"]]
                     if len(alliance) != 1:
-                        raise Exception(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
+                        print(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
+                        continue
                     alliance = alliance[0]
-                    netscore += special_divide(3*total_points(row), matchinfo["score_breakdown"][alliance]["totalPoints"])
+                    rawscore += total_points(row) #matchinfo["score_breakdown"][alliance]["totalPoints"]
+                    netscore += special_divide(total_points(row), matchinfo["score_breakdown"][alliance]["totalPoints"])
                     total += 1
-                return special_divide(netscore, total)
+                return {"rawaverage": special_divide(rawscore, total), "weightedscore": special_divide(netscore, total)}
+
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
-            teams = dict(sorted(teams.items(), key=lambda item: item[1], reverse=True))
+            teams = dict(sorted(teams.items(), key=lambda item: item[1]["weightedscore"], reverse=True))
             if flask.request.args.get("csv", "false") == "false":
                 return teams
             else:
                 out = io.StringIO()
-                writer = csv.DictWriter(out, fieldnames=["Team Number", "Offense Score"])
+                writer = csv.DictWriter(out, fieldnames=["Team Number", "Offense Score", "Raw Average"])
                 writer.writeheader()
-                writer.writerows([{"Team Number": team, "Offense Score": score} for (team, score) in teams.items()])
+                writer.writerows([{"Team Number": team, "Offense Score": score["weightedscore"], "Raw Average": score["rawaverage"]} for (team, score) in teams.items()])
                 return flask.Response(out.getvalue(), 200, mimetype='text/csv')
     
     class BestAuto(flask_restful.Resource):
         def get(self, event: str):
             c = db.connection().cursor()
             table = f"frc2023{event}_match"
-            def k(team: str) -> float:
+            def k(team: str) -> dict[str, float]:
                 netscore = 0
+                rawscore = 0
                 total = 0
                 for row in c.execute(f"select * from {table} where teamNumber={team}").fetchall():
                     resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/match/2023{event}_{row['match']}")
@@ -104,28 +110,31 @@ class Analysis2023(object):
                     matchinfo = resp.json()
                     alliance = [a for a in matchinfo["alliances"] if f"frc{row['teamNumber']}" in matchinfo["alliances"][a]["team_keys"]]
                     if len(alliance) != 1:
-                        raise Exception(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
+                        print(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
+                        continue
                     alliance = alliance[0]
-                    netscore += 3*auto_points(row)/matchinfo["score_breakdown"][alliance]["autoPoints"]
+                    rawscore += total_points(row, "auto")
+                    netscore += total_points(row, "auto")/matchinfo["score_breakdown"][alliance]["autoPoints"]
                     total += 1
-                return special_divide(netscore, total)
+                return {"rawaverage": special_divide(rawscore, total), "weightedscore": special_divide(netscore, total)}
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
-            teams = dict(sorted(teams.items(), key=lambda item: item[1], reverse=True))
+            teams = dict(sorted(teams.items(), key=lambda item: item[1]["weightedscore"], reverse=True))
             if flask.request.args.get("csv", "false") == "false":
                 return teams
             else:
                 out = io.StringIO()
-                writer = csv.DictWriter(out, fieldnames=["Team Number", "Auto Score"])
+                writer = csv.DictWriter(out, fieldnames=["Team Number", "Auto Score", "Raw Average"])
                 writer.writeheader()
-                writer.writerows([{"Team Number": team, "Auto Score": score} for (team, score) in teams.items()])
+                writer.writerows([{"Team Number": team, "Auto Score": score["weightedscore"], "Raw Average": score["rawaverage"]} for (team, score) in teams.items()])
                 return flask.Response(out.getvalue(), 200, mimetype='text/csv')
     
     class BestTeleop(flask_restful.Resource):
         def get(self, event: str):
             c = db.connection().cursor()
             table = f"frc2023{event}_match"
-            def k(team: str) -> float:
+            def k(team: str) -> dict[str, float]:
                 netscore = 0
+                rawscore = 0
                 total = 0
                 for row in c.execute(f"select * from {table} where teamNumber={team}").fetchall():
                     resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/match/2023{event}_{row['match']}")
@@ -134,28 +143,31 @@ class Analysis2023(object):
                     matchinfo = resp.json()
                     alliance = [a for a in matchinfo["alliances"] if f"frc{row['teamNumber']}" in matchinfo["alliances"][a]["team_keys"]]
                     if len(alliance) != 1:
-                        raise Exception(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
+                        print(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
+                        continue
                     alliance = alliance[0]
-                    netscore += 3*teleop_points(row)/matchinfo["score_breakdown"][alliance]["teleopPoints"]
+                    netscore += total_points(row, "teleop")/matchinfo["score_breakdown"][alliance]["teleopPoints"]
+                    rawscore += total_points(row, "teleop")
                     total += 1
-                return special_divide(netscore, total)
+                return {"rawaverage": special_divide(rawscore, total), "weightedscore": special_divide(netscore, total)}
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
-            teams = dict(sorted(teams.items(), key=lambda item: item[1], reverse=True))
+            teams = dict(sorted(teams.items(), key=lambda item: item[1]["weightedscore"], reverse=True))
             if flask.request.args.get("csv", "false") == "false":
                 return teams
             else:
                 out = io.StringIO()
-                writer = csv.DictWriter(out, fieldnames=["Team Number", "Teleop Score"])
+                writer = csv.DictWriter(out, fieldnames=["Team Number", "Teleop Score", "Raw Average"])
                 writer.writeheader()
-                writer.writerows([{"Team Number": team, "Teleop Score": score} for (team, score) in teams.items()])
+                writer.writerows([{"Team Number": team, "Teleop Score": score['weightedscore'], "Raw Average": score["rawaverage"]} for (team, score) in teams.items()])
                 return flask.Response(out.getvalue(), 200, mimetype='text/csv')
     
     class BestEndgame(flask_restful.Resource):
         def get(self, event: str):
             c = db.connection().cursor()
             table = f"frc2023{event}_match"
-            def k(team: str) -> float:
+            def k(team: str) -> dict[str, float]:
                 netscore = 0
+                rawscore = 0
                 total = 0
                 for row in c.execute(f"select * from {table} where teamNumber={team}").fetchall():
                     resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/match/2023{event}_{row['match']}")
@@ -164,20 +176,22 @@ class Analysis2023(object):
                     matchinfo = resp.json()
                     alliance = [a for a in matchinfo["alliances"] if f"frc{row['teamNumber']}" in matchinfo["alliances"][a]["team_keys"]]
                     if len(alliance) != 1:
-                        raise Exception(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
+                        print(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
+                        continue
                     alliance = alliance[0]
-                    netscore += special_divide(3*endgame_points(row), (matchinfo["score_breakdown"][alliance]["endGameParkPoints"]+matchinfo["score_breakdown"][alliance]["endGameChargeStationPoints"]))
+                    rawscore += total_points(row, "endgame")
+                    netscore += special_divide(total_points(row, "endgame"), (matchinfo["score_breakdown"][alliance]["endGameParkPoints"]+matchinfo["score_breakdown"][alliance]["endGameChargeStationPoints"]))
                     total += 1
-                return special_divide(netscore, total)
+                return {"rawaverage": special_divide(rawscore, total), "weightedscore": special_divide(netscore, total)}
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
-            teams = dict(sorted(teams.items(), key=lambda item: item[1], reverse=True))
+            teams = dict(sorted(teams.items(), key=lambda item: item[1]["weightedscore"], reverse=True))
             if flask.request.args.get("csv", "false") == "false":
                 return teams
             else:
                 out = io.StringIO()
-                writer = csv.DictWriter(out, fieldnames=["Team Number", "Endgame Score"])
+                writer = csv.DictWriter(out, fieldnames=["Team Number", "Endgame Score", "Raw Average"])
                 writer.writeheader()
-                writer.writerows([{"Team Number": team, "Endgame Score": score} for (team, score) in teams.items()])
+                writer.writerows([{"Team Number": team, "Endgame Score": score['weightedscore'], "Raw Average": score["rawaverage"]} for (team, score) in teams.items()])
                 return flask.Response(out.getvalue(), 200, mimetype='text/csv')
     
     class PickupLocations(flask_restful.Resource):
@@ -214,7 +228,7 @@ class Analysis2023(object):
                 cube_high_total += row["autoCubehigh"]
                 cube_percentage_total += (row["autoCubelow"] + row["autoCubemid"] + row["autoCubehigh"]) / (row["autoCubeAttempts"] + row["autoCubelow"] + row["autoCubemid"] + row["autoCubehigh"])
                 score_total += int(row["autoMobility"]) * SCORING_POINTS["autoMobility"] + int(row["autoDocked"]) * SCORING_POINTS["autoDocked"] + int(row["autoEngaged"]) * SCORING_POINTS["autoEngaged"]
-            score_total += auto_points(row) #idk if this might cause an error but my type checker marks it as red might want to take a look
+            score_total += total_points(row, "auto") #idk if this might cause an error but my type checker marks it as red might want to take a look #type:ignore
 
             return {
                 "averageConeLow": cone_low_total / len(matches),
@@ -248,11 +262,6 @@ SCORING_POINTS = {
     "endgameDocked" : 6,
     "endgameEngaged": 4,
 }
-def total_points(row):
-    return sum([SCORING_POINTS[k] for k in row.keys() if k in SCORING_POINTS])
-def auto_points(row):
-    return sum([SCORING_POINTS[k] for k in row.keys() if k.startswith("auto") and k in SCORING_POINTS])
-def teleop_points(row):
-    return sum([SCORING_POINTS[k] for k in row.keys() if k.startswith("teleop") and k in SCORING_POINTS])
-def endgame_points(row):
-    return sum([SCORING_POINTS[k] for k in row.keys() if k.startswith("endgame") and k in SCORING_POINTS])
+
+def total_points(row, startswith = ""):
+    return sum([SCORING_POINTS[k]*v for k, v in dict(row).items() if k in SCORING_POINTS and k.startswith(startswith)])
