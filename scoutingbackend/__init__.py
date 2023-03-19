@@ -32,7 +32,7 @@ def create_app():
         a.register(app) # /api/
 
         # if you want to access bluealliance functions (WARNING: may work slightly funny), you can now use current_app.api/current_app.bluealliance.xyz
-        app.api: api.Api = a
+        app.api: api.Api = a #type:ignore
         app.bluealliance: bluealliance.BlueAlliance = ba #type:ignore
     
     pathlib.Path(app.instance_path).mkdir(parents=True, exist_ok=True)

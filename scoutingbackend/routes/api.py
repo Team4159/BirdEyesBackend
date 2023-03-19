@@ -20,6 +20,7 @@ class Api(object):
         self.rest.add_resource(self.ApiPSchema, '/<int:season>/pitschema')
         self.rest.add_resource(self.ApiMatch, '/<int:season>/<string:event>/match')
         self.rest.add_resource(self.ApiPit, '/<int:season>/<string:event>/pit')
+        self.rest.add_resource(self.ApiCsvMatch, '/<int:season>/<string:event>/matchcsv')
         
         self.tables = self.Tables()
         self.match_schema = self.ApiMSchema()
@@ -114,7 +115,7 @@ class Api(object):
                 return flask.Response("Table does not exist.", 404)
             data = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_match {generate_selector(flask.request.args)}").fetchall()
             if len(data) <= 0:
-                return flask_restful.abort(404, tip="Check your filters!")
+                return flask_restful.abort(404, description="event table is empty", tip="Check your filters!")
 
             out = StringIO()
             writer = csv.writer(out)
