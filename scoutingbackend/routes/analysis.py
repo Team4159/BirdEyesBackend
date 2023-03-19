@@ -245,17 +245,47 @@ class Analysis2023(object):
     
     class SaturatedEvent(flask_restful.Resource):
         def get(self, event: str):
-            tbamatches = get_with_cache(f"https://www.thebluealliance.com/api/v3/event/2023{event}/matches")
-            tbamatches = {match["event_key"]: match for match in tbamatches}
-            dbmatches = db.connection().cursor().execute(f"select * from frc2023{event}_match").fetchall()
-            dbmatches = {row["match"]: dict(row) for row in dbmatches}
+            tbamatches = get_with_cache(f"https://www.thebluealliance.com/api/v3/event/2023{event}/matches").json()
+            tbamatches = {match['key'].split("_")[-1]: match for match in tbamatches}
             
-            matches = dbmatches
-            for match, tbadata in tbamatches:
-                matches[match] = dbmatches[match] if match in dbmatches else {}
-                
+            matches = []
+            for dbdata in db.connection().cursor().execute(f"select * from frc2023{event}_match").fetchall():
+                match = dbdata["match"]
+                dbdata = dict(dbdata)
+                tbadata = tbamatches[match]
+                alliance = [a for a in tbadata["alliances"] if f"frc{dbdata['teamNumber']}" in tbadata["alliances"][a]["team_keys"]]
+                if len(alliance) != 1:
+                    print(f"[Analysis] Invalid Alliance. Team: {dbdata['teamNumber']} @ Match: {dbdata['match']}")
+                    continue
+                alliance: str = alliance[0]
+                robotnumber: int = tbadata["alliances"][alliance]["team_keys"].index("frc"+str(dbdata['teamNumber']))+1
+                if robotnumber > 3:
+                    print(f"[Analysis] Invalid Robot Index Number. Team: {dbdata['teamNumber']} @ Match: {dbdata['match']}")
+                    continue
+                alliancescores = tbadata["score_breakdown"][alliance]
+                autodocked = alliancescores["autoChargeStationRobot"+str(robotnumber)] == "Docked"
+                endgamedocked = alliancescores["endGameChargeStationRobot"+str(robotnumber)] == "Docked"
+                del dbdata["name"]
+                del dbdata["commentsDriverComments"]
+                del dbdata["commentsRobotComments"]
+                matches.append({
+                    **dbdata,
+                    "activationBonusAchieved": alliancescores["activationBonusAchieved"],
+                    "coopertitionCriteriaMet": alliancescores["coopertitionCriteriaMet"],
+                    "sustainabilityBonusAchieved": alliancescores["sustainabilityBonusAchieved"],
+                    "won": tbadata["winning_alliance"] == alliance,
+                    "rp": alliancescores["rp"],
 
-            return {} # TODO: Implement
+                    "autoMobility": alliancescores["mobilityRobot"+str(robotnumber)] == "Yes",
+                    "autoDocked": autodocked,
+                    "autoEngaged": autodocked and alliancescores["autoBridgeState"] == "Level",
+                    "endgameParked": alliancescores["endGameChargeStationRobot"+str(robotnumber)] == "Park",
+                    "endgameDocked": endgamedocked,
+                    "endgameEngaged": endgamedocked and alliancescores["endGameBridgeState"] == "Level",
+                    "commentsFouls":  max(dbdata["commentsFouls"] if "commentsFouls" in dbdata else 0, alliancescores["foulCount"]+alliancescores["techFoulCount"]),
+                    "commentsDisqualified": "frc"+str(dbdata['teamNumber']) in tbadata["alliances"][alliance]["dq_team_keys"]
+                })
+            return matches
 
 SCORING_POINTS = {
     "autoConeLow"   : 3,
@@ -276,6 +306,7 @@ SCORING_POINTS = {
     "endgameParked" : 2,
     "endgameDocked" : 6,
     "endgameEngaged": 4,
+    "commentsFouls" :-5
 }
 
 def total_points(row, startswith = ""):
