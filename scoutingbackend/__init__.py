@@ -3,7 +3,6 @@ import pathlib
 
 import flask
 import flask_cors
-import typing
 
 from scoutingbackend.database import db
 from scoutingbackend.routes import api, bluealliance, analysis, graphics
@@ -25,16 +24,15 @@ def create_app():
         app.context_processor
         a = api.Api()
         ba = bluealliance.BlueAlliance(app.config["TBA_KEY"])
-        ba.register(a.bp)
+        ba.register(a.bp) # /api/bluealliance
         an = analysis.Analysis2023()
-        an.register(a.bp)
-        a.register(app)
+        an.register(a.bp) # /api/analysis
         g = graphics.Graphics2023(app.config['MANUAL_CACHE'])
-        g.register(app)
-        
-        # type checkers complain here but that's what python is about
+        g.register(an.bp) # /api/analysis/graphics
+        a.register(app) # /api/
+
         # if you want to access bluealliance functions (WARNING: may work slightly funny), you can now use current_app.api/current_app.bluealliance.xyz
-        app.api: api.Api = a #type:ignore
+        app.api: api.Api = a
         app.bluealliance: bluealliance.BlueAlliance = ba #type:ignore
     
     pathlib.Path(app.instance_path).mkdir(parents=True, exist_ok=True)

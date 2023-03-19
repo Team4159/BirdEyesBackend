@@ -24,6 +24,7 @@ class Analysis2023(object):
 
         self.rest.add_resource(self.PickupLocations, '/<string:event>/pickups')
         self.rest.add_resource(self.AutoScoring, '/<string:event>/<int:team>/autoScoring')
+        self.rest.add_resource(self.SaturatedEvent, '/<string:event>')
 
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
@@ -79,7 +80,7 @@ class Analysis2023(object):
                         print(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
                         continue
                     alliance = alliance[0]
-                    rawscore += total_points(row) #matchinfo["score_breakdown"][alliance]["totalPoints"]
+                    rawscore += total_points(row)
                     netscore += special_divide(total_points(row), matchinfo["score_breakdown"][alliance]["totalPoints"])
                     total += 1
                 return {"rawaverage": special_divide(rawscore, total), "weightedscore": special_divide(netscore, total)}
@@ -114,7 +115,7 @@ class Analysis2023(object):
                         continue
                     alliance = alliance[0]
                     rawscore += total_points(row, "auto")
-                    netscore += total_points(row, "auto")/matchinfo["score_breakdown"][alliance]["autoPoints"]
+                    netscore += special_divide(total_points(row, "auto"), matchinfo["score_breakdown"][alliance]["autoPoints"])
                     total += 1
                 return {"rawaverage": special_divide(rawscore, total), "weightedscore": special_divide(netscore, total)}
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
@@ -146,8 +147,8 @@ class Analysis2023(object):
                         print(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
                         continue
                     alliance = alliance[0]
-                    netscore += total_points(row, "teleop")/matchinfo["score_breakdown"][alliance]["teleopPoints"]
                     rawscore += total_points(row, "teleop")
+                    netscore += special_divide(total_points(row, "teleop"), matchinfo["score_breakdown"][alliance]["teleopPoints"])
                     total += 1
                 return {"rawaverage": special_divide(rawscore, total), "weightedscore": special_divide(netscore, total)}
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
@@ -241,6 +242,20 @@ class Analysis2023(object):
                 "cubePercentage": cube_percentage_total / len(matches),
                 "averageScore": score_total / len(matches),
             }
+    
+    class SaturatedEvent(flask_restful.Resource):
+        def get(self, event: str):
+            tbamatches = get_with_cache(f"https://www.thebluealliance.com/api/v3/event/2023{event}/matches")
+            tbamatches = {match["event_key"]: match for match in tbamatches}
+            dbmatches = db.connection().cursor().execute(f"select * from frc2023{event}_match").fetchall()
+            dbmatches = {row["match"]: dict(row) for row in dbmatches}
+            
+            matches = dbmatches
+            for match, tbadata in tbamatches:
+                matches[match] = dbmatches[match] if match in dbmatches else {}
+                
+
+            return {} # TODO: Implement
 
 SCORING_POINTS = {
     "autoConeLow"   : 3,
