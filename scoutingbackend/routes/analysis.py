@@ -24,6 +24,7 @@ class Analysis2023(object):
 
         self.rest.add_resource(self.PickupLocations, '/<string:event>/pickups')
         self.rest.add_resource(self.AutoScoring, '/<string:event>/<int:team>/autoScoring')
+        self.rest.add_resource(self.SaturatedEvent, '/<string:event>')
 
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
@@ -79,7 +80,7 @@ class Analysis2023(object):
                         print(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
                         continue
                     alliance = alliance[0]
-                    rawscore += total_points(row) #matchinfo["score_breakdown"][alliance]["totalPoints"]
+                    rawscore += total_points(row)
                     netscore += special_divide(total_points(row), matchinfo["score_breakdown"][alliance]["totalPoints"])
                     total += 1
                 return {"rawaverage": special_divide(rawscore, total), "weightedscore": special_divide(netscore, total)}
@@ -114,7 +115,7 @@ class Analysis2023(object):
                         continue
                     alliance = alliance[0]
                     rawscore += total_points(row, "auto")
-                    netscore += total_points(row, "auto")/matchinfo["score_breakdown"][alliance]["autoPoints"]
+                    netscore += special_divide(total_points(row, "auto"), matchinfo["score_breakdown"][alliance]["autoPoints"])
                     total += 1
                 return {"rawaverage": special_divide(rawscore, total), "weightedscore": special_divide(netscore, total)}
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
@@ -146,8 +147,8 @@ class Analysis2023(object):
                         print(f"[Analysis] Invalid Alliance. Team: {row['teamNumber']} @ Match: {row['match']}")
                         continue
                     alliance = alliance[0]
-                    netscore += total_points(row, "teleop")/matchinfo["score_breakdown"][alliance]["teleopPoints"]
                     rawscore += total_points(row, "teleop")
+                    netscore += special_divide(total_points(row, "teleop"), matchinfo["score_breakdown"][alliance]["teleopPoints"])
                     total += 1
                 return {"rawaverage": special_divide(rawscore, total), "weightedscore": special_divide(netscore, total)}
             teams = {team: k(team) for team in set(t["teamNumber"] for t in c.execute(f"select (teamNumber) from " + table).fetchall())}
@@ -241,6 +242,50 @@ class Analysis2023(object):
                 "cubePercentage": cube_percentage_total / len(matches),
                 "averageScore": score_total / len(matches),
             }
+    
+    class SaturatedEvent(flask_restful.Resource):
+        def get(self, event: str):
+            tbamatches = get_with_cache(f"https://www.thebluealliance.com/api/v3/event/2023{event}/matches").json()
+            tbamatches = {match['key'].split("_")[-1]: match for match in tbamatches}
+            
+            matches = []
+            for dbdata in db.connection().cursor().execute(f"select * from frc2023{event}_match").fetchall():
+                match = dbdata["match"]
+                dbdata = dict(dbdata)
+                tbadata = tbamatches[match]
+                alliance = [a for a in tbadata["alliances"] if f"frc{dbdata['teamNumber']}" in tbadata["alliances"][a]["team_keys"]]
+                if len(alliance) != 1:
+                    print(f"[Analysis] Invalid Alliance. Team: {dbdata['teamNumber']} @ Match: {dbdata['match']}")
+                    continue
+                alliance: str = alliance[0]
+                robotnumber: int = tbadata["alliances"][alliance]["team_keys"].index("frc"+str(dbdata['teamNumber']))+1
+                if robotnumber > 3:
+                    print(f"[Analysis] Invalid Robot Index Number. Team: {dbdata['teamNumber']} @ Match: {dbdata['match']}")
+                    continue
+                alliancescores = tbadata["score_breakdown"][alliance]
+                autodocked = alliancescores["autoChargeStationRobot"+str(robotnumber)] == "Docked"
+                endgamedocked = alliancescores["endGameChargeStationRobot"+str(robotnumber)] == "Docked"
+                del dbdata["name"]
+                del dbdata["commentsDriverComments"]
+                del dbdata["commentsRobotComments"]
+                matches.append({
+                    **dbdata,
+                    "activationBonusAchieved": alliancescores["activationBonusAchieved"],
+                    "coopertitionCriteriaMet": alliancescores["coopertitionCriteriaMet"],
+                    "sustainabilityBonusAchieved": alliancescores["sustainabilityBonusAchieved"],
+                    "won": tbadata["winning_alliance"] == alliance,
+                    "rp": alliancescores["rp"],
+
+                    "autoMobility": alliancescores["mobilityRobot"+str(robotnumber)] == "Yes",
+                    "autoDocked": autodocked,
+                    "autoEngaged": autodocked and alliancescores["autoBridgeState"] == "Level",
+                    "endgameParked": alliancescores["endGameChargeStationRobot"+str(robotnumber)] == "Park",
+                    "endgameDocked": endgamedocked,
+                    "endgameEngaged": endgamedocked and alliancescores["endGameBridgeState"] == "Level",
+                    "commentsFouls":  max(dbdata["commentsFouls"] if "commentsFouls" in dbdata else 0, alliancescores["foulCount"]+alliancescores["techFoulCount"]),
+                    "commentsDisqualified": "frc"+str(dbdata['teamNumber']) in tbadata["alliances"][alliance]["dq_team_keys"]
+                })
+            return matches
 
 SCORING_POINTS = {
     "autoConeLow"   : 3,
@@ -261,6 +306,7 @@ SCORING_POINTS = {
     "endgameParked" : 2,
     "endgameDocked" : 6,
     "endgameEngaged": 4,
+    "commentsFouls" :-5
 }
 
 def total_points(row, startswith = ""):

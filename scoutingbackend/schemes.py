@@ -4,10 +4,10 @@ PIT_SCHEME = {
     '2023': {
         "What is your experience with FIRST so far? How did this build season go for you?": "experienceBuildseason",
         "How has your robot been doing in this competition? What are some strengths of your robot? What are some of its shortcomings?": "strengthsWeaknesses",
-        "Does your robot usually score in the Low, Mid, or High row?": "scoreRow",
-        "During matches can your robot go up the Charge Station?": "canCharge",
         "What are your robot's preferred starting locations? What are its auto options?": "autoStart",
+        "During matches can your robot go up the Charge Station?": "canCharge",
         "How do you usually intake? Is your intake specific to any one game piece?": "howIntake",
+        "Does your robot usually score in the Low, Mid, or High row?": "scoreRow",
         "How would you rate your Drive Team's level of experience/performance in this competition?": "driveTeamExperience",
         "Any questions/additional comments for CardinalBotics? Anything we should know about your robot/team? ": "comments"
     },
