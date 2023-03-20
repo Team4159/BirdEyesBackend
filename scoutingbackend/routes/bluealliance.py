@@ -69,7 +69,7 @@ class BlueAlliance(object):
                         scoutedlist = [t['teamNumber'] for t in db.connection().cursor().execute(f"SELECT (teamNumber) FROM frc{season}{event}_pit").fetchall()]
                     except:
                         scoutedlist = []
-                    full_list = [int(team_code[3:]) for team_code in resp.json()]
+                    full_list = [int(team_code[3:]) for team_code in resp.json() if int(team_code[3:]) != 0]
                     return list(set(full_list).difference(scoutedlist))
                 else:
                     return {team_code[3:]: "*" for team_code in resp.json()}
@@ -82,5 +82,6 @@ class BlueAlliance(object):
             o = {}
             for alliance, allianceData in j['alliances'].items():
                 for num, teamCode in enumerate(allianceData['team_keys']):
-                    o[teamCode[3:]] = alliance+str(num+1)
+                    if teamCode[3:] != "0":
+                        o[teamCode[3:]] = alliance+str(num+1)
             return o
