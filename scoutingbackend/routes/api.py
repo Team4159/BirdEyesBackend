@@ -76,10 +76,10 @@ class Api(object):
         def get(self, season, event):
             if f"frc{season}{event}_pit" not in [e['name'] for e in db.connection().cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
                 return flask.Response("Table does not exist.", 404)
-            values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_pit {generate_selector(flask.request.args)}")
-            if not values:
+            values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_pit {generate_selector(flask.request.args)}").fetchall()
+            if len(values) == 0:
                 return flask_restful.abort(404)
-            return [dict(scout) for scout in values.fetchall()]
+            return [dict(scout) for scout in values]
 
     class ApiMatch(flask_restful.Resource):
         def post(self, season: int, event: str):
