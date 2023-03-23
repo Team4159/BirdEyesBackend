@@ -1,6 +1,7 @@
 import csv
 from io import StringIO
 import json
+from sqlite3 import OperationalError
 import typing
 
 import flask
@@ -18,9 +19,9 @@ class Api(object):
         self.rest.add_resource(self.Tables, '/<int:season>/tables')
         self.rest.add_resource(self.ApiMSchema, '/<int:season>/matchschema')
         self.rest.add_resource(self.ApiPSchema, '/<int:season>/pitschema')
-        self.rest.add_resource(self.ApiMatch, '/<int:season>/<string:event>/match')
         self.rest.add_resource(self.ApiPit, '/<int:season>/<string:event>/pit')
-        self.rest.add_resource(self.ApiCsvMatch, '/<int:season>/<string:event>/matchcsv')
+        self.rest.add_resource(self.ApiPitCsv, '/<int:season>/<string:event>/pit/csv')
+        self.rest.add_resource(self.ApiMatch, '/<int:season>/<string:event>/match')
         
         self.tables = self.Tables()
         self.match_schema = self.ApiMSchema()
@@ -40,8 +41,8 @@ class Api(object):
             if str(season) not in schemes.MATCH_SCHEME or str(season) not in schemes.PIT_SCHEME:
                 return flask_restful.abort(400, description="Invalid Season!")
             if not flask.request.get_data():
-                return flask_restful.abort(400, description="No event set")
-            event_name = flask.request.get_data().decode('utf8')
+                return flask_restful.abort(400, description="No Event Set!")
+            event_name = flask.request.get_data().decode(flask.request.charset)
 
             db.create_tables(season, event_name)
             return {}
@@ -76,10 +77,29 @@ class Api(object):
         def get(self, season, event):
             if f"frc{season}{event}_pit" not in [e['name'] for e in db.connection().cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
                 return flask.Response("Table does not exist.", 404)
-            values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_pit {generate_selector(flask.request.args)}").fetchall()
+            try:
+                values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_pit {generate_selector(flask.request.args)}").fetchall()
+            except OperationalError:
+                return flask_restful.abort(400, description="Invalid Selectors")
             if len(values) == 0:
                 return flask_restful.abort(404)
             return [dict(scout) for scout in values]
+    
+    class ApiPitCsv(flask_restful.Resource):
+        def get(self, season: int, event: str):
+            if f"frc{season}{event}_pit" not in [e['name'] for e in db.connection().cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
+                return flask.Response("Table does not exist.", 404)
+            try:
+                values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_pit {generate_selector(flask.request.args)}").fetchall()
+            except OperationalError:
+                return flask_restful.abort(400, description="Invalid Selectors")
+            if len(values) == 0:
+                return flask_restful.abort(404)
+            out = StringIO()
+            writer = csv.DictWriter(out, fieldnames=["name", "teamNumber", *schemes.PIT_SCHEME[str(season)].keys()])
+            writer.writeheader()
+            writer.writerows([{k: v for (k, v) in dict(scout).items() if k in writer.fieldnames} for scout in values])
+            return flask.Response(out.getvalue(), 200, mimetype='text/csv')
 
     class ApiMatch(flask_restful.Resource):
         def post(self, season: int, event: str):
@@ -104,20 +124,10 @@ class Api(object):
         def get(self, season: int, event: str):
             if f"frc{season}{event}_match" not in [e['name'] for e in db.connection().cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
                 return flask.Response("Table does not exist.", 404)
-            values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_match {generate_selector(flask.request.args)}")
+            try:
+                values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_match {generate_selector(flask.request.args)}").fetchall()
+            except OperationalError:
+                return flask_restful.abort(400, description="Invalid Selectors")
             if not values:
                 return flask_restful.abort(404)
-            return [dict(scout) for scout in values.fetchall()]
-    
-    class ApiCsvMatch(flask_restful.Resource): #this is to be kept for emergency purposes, e.g. something goes wrong with analysis or if we just want a full look at all of the data
-        def get(self, season: int, event: str):
-            if f"frc{season}{event}_match" not in [e['name'] for e in db.connection().cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
-                return flask.Response("Table does not exist.", 404)
-            data = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_match {generate_selector(flask.request.args)}").fetchall()
-            if len(data) <= 0:
-                return flask_restful.abort(404, description="event table is empty", tip="Check your filters!")
-
-            out = StringIO()
-            writer = csv.writer(out)
-            writer.writerows([list(data[0].keys())]+data)
-            return flask.Response(out.getvalue(), 200, mimetype='text/csv')
+            return [dict(scout) for scout in values]
