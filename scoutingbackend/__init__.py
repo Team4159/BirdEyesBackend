@@ -72,32 +72,38 @@ def create_app():
     
     @app.route('/api/<string:season>/events/<string:event_id>/matches/<string:match_id>/scout', methods = ['POST'])
     def start_scouting(season, event_id, match_id):
+        print("scouting started!!!!")
         master_file_path = f"teams/{season}-{event_id}-{match_id}-master.txt"
         unassiged_file_path = f"teams/{season}-{event_id}-{match_id}-unassigned.txt"
         
         if not os.path.isdir('teams'):
+            print('making dir')
             os.makedirs('teams')
         
         if not os.path.exists(master_file_path):
+            print('filling files')
             tba_match = bluealliance.BlueAlliance.BAMatch().get(season, event_id, match_id)
-            tba_match_participants = tba_match['alliances']['blue']['team_keys'] + tba_match['alliances']['red']['team_keys']
+            tba_match_participants = tba_match.keys()
             tba_match_participants_string = '\n'.join(tba_match_participants)
+            print('got participants', tba_match_participants_string)
             
             with open(master_file_path, 'w') as master, open(unassiged_file_path, 'w') as unassigned:
                 master.write(tba_match_participants_string)
                 unassigned.write(tba_match_participants_string)
+                print('finished writing to files')
 
-        else:
-            with open(master_file_path, 'r') as master, open(unassiged_file_path, 'r+') as unassigned:
-                lines = unassigned.readlines()
-                print(lines)
-                if len(lines) == 0:
-                    print('no lines')
-                    raise flask.Response('All teams assigned.', 404)
-                else:
-                    last = lines[-1]
-                    unassigned.writelines(lines[:-1])
-                    return flask.Response(json.dumps({"team_number": last}, sort_keys=False), 200, content_type='application/json')
+        with open(unassiged_file_path, 'r') as unassigned:
+            print('start reading')
+            lines = unassigned.readlines()
+            print(lines)
+            if len(lines) == 0:
+                print('no lines')
+                return flask.Response('All teams assigned.', 404)
+            
+        with open(unassiged_file_path, 'w') as unassigned:
+            last = lines[-1].strip()
+            unassigned.writelines(lines[:-1])
+            return flask.Response(json.dumps({"team_number": last}, sort_keys=False), 200, content_type='application/json')
                 
     @app.post('/<int:season>/events/<string:event_id>/matches/<string:match_id>/stop_scouting/<string:team_number>')
     def stop_scouting(season, event_id, match_id, team_number):
@@ -117,9 +123,9 @@ def create_app():
                     return flask.Response("{team_number} not added to unassigned list because it is not in the master list")                
                 
 
-    @app.route('/testroute')
-    def test_route():
-        print("hit test")
+    @app.route('/testroute/<int:season>', methods = ['POST'])
+    def test_route(season):
+        print(f"hit test {season}")
         return flask.Response("you did it", 200)
     
     print(app.url_map)
