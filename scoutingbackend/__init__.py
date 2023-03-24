@@ -70,7 +70,7 @@ def create_app():
         # TODO: Also include which teams are assigned
         return flask.Response(json.dumps(sorted_unfinished_matches[0:2], sort_keys=False), 200, content_type='application/json')
     
-    @app.post('/<int:season>/events/<string:event_id>/matches/<string:match_id>/scout')
+    @app.route('/api/<string:season>/events/<string:event_id>/matches/<string:match_id>/scout', methods = ['POST'])
     def start_scouting(season, event_id, match_id):
         master_file_path = f"teams/{season}-{event_id}-{match_id}-master.txt"
         unassiged_file_path = f"teams/{season}-{event_id}-{match_id}-unassigned.txt"
@@ -79,13 +79,20 @@ def create_app():
             os.makedirs('teams')
         
         if not os.path.exists(master_file_path):
-            open(master_file_path, 'w')
-            open(unassiged_file_path, 'w')
+            tba_match = bluealliance.BlueAlliance.BAMatch().get(season, event_id, match_id)
+            tba_match_participants = tba_match['alliances']['blue']['team_keys'] + tba_match['alliances']['red']['team_keys']
+            tba_match_participants_string = '\n'.join(tba_match_participants)
+            
+            with open(master_file_path, 'w') as master, open(unassiged_file_path, 'w') as unassigned:
+                master.write(tba_match_participants_string)
+                unassigned.write(tba_match_participants_string)
 
         else:
             with open(master_file_path, 'r') as master, open(unassiged_file_path, 'r+') as unassigned:
                 lines = unassigned.readlines()
+                print(lines)
                 if len(lines) == 0:
+                    print('no lines')
                     raise flask.Response('All teams assigned.', 404)
                 else:
                     last = lines[-1]
@@ -108,5 +115,12 @@ def create_app():
                     return flask.Response("{team_number} freed", 200)
                 else:
                     return flask.Response("{team_number} not added to unassigned list because it is not in the master list")                
+                
+
+    @app.route('/testroute')
+    def test_route():
+        print("hit test")
+        return flask.Response("you did it", 200)
     
+    print(app.url_map)
     return app
