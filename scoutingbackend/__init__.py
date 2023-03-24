@@ -103,7 +103,7 @@ def create_app():
         with open(unassiged_file_path, 'w') as unassigned:
             last = lines[-1].strip()
             unassigned.writelines(lines[:-1])
-            return flask.Response(json.dumps({"team_number": last}, sort_keys=False), 200, content_type='application/json')
+            return flask.Response(json.dumps({"team_number": int(last)}, sort_keys=False), 200, content_type='application/json')
                 
     @app.post('/<int:season>/events/<string:event_id>/matches/<string:match_id>/stop_scouting/<string:team_number>')
     def stop_scouting(season, event_id, match_id, team_number):
