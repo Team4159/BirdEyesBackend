@@ -72,11 +72,15 @@ def create_app():
     
     @app.post('/<int:season>/events/<string:event_id>/matches/<string:match_id>/scout')
     def start_scouting(season, event_id, match_id):
-        master_file_path = "~/teams/{season}-{event_id}-{match_id}-master.txt"
-        unassiged_file_path = "~/teams/{season}-{event_id}-{match_id}-unassigned.txt"
+        master_file_path = f"teams/{season}-{event_id}-{match_id}-master.txt"
+        unassiged_file_path = f"teams/{season}-{event_id}-{match_id}-unassigned.txt"
+        
+        if not os.path.isdir('teams'):
+            os.makedirs('teams')
+        
         if not os.path.exists(master_file_path):
-            open(master_file_path, 'x')
-            open(unassiged_file_path, 'x')
+            open(master_file_path, 'w')
+            open(unassiged_file_path, 'w')
 
         else:
             with open(master_file_path, 'r') as master, open(unassiged_file_path, 'r+') as unassigned:
@@ -86,7 +90,7 @@ def create_app():
                 else:
                     last = lines[-1]
                     unassigned.writelines(lines[:-1])
-                    return flask.Response(json.dumps(last, sort_keys=False), 200, content_type='application/json')
+                    return flask.Response(json.dumps({"team_number": last}, sort_keys=False), 200, content_type='application/json')
                 
     @app.post('/<int:season>/events/<string:event_id>/matches/<string:match_id>/stop_scouting/<string:team_number>')
     def stop_scouting(season, event_id, match_id, team_number):
