@@ -11,7 +11,7 @@ PIT_SCHEME = {
         "driveTeamExperience": "How would you rate your Drive Team's level of experience/performance in this competition?",
         "comments": "Any questions/additional comments for CardinalBotics? Anything we should know about your robot/team?"
     },
-    '2022': {"What role do you think the FIRST community has in the world, how has that role changed since its establishment?": "test"}
+    '2022': {"test": "What role do you think the FIRST community has in the world, how has that role changed since its establishment?"}
 }
 
 MATCH_SCHEME = {
