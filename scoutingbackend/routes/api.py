@@ -84,6 +84,32 @@ class Api(object):
             if len(values) == 0:
                 return flask_restful.abort(404)
             return [dict(scout) for scout in values]
+        
+        def patch(self, season: int, event: str):
+            input_data = flask.request.get_json(force=True)
+            if not input_data:
+                return flask_restful.abort(400)
+            if "teamNumber" not in input_data or input_data["teamNumber"] is None:
+                return flask_restful.abort(400, description="Missing Team Number")
+            if "name" not in input_data or input_data["name"] is None:
+                return flask_restful.abort(400, description="Missing Name")
+            if "edits" not in input_data or input_data["edits"] is None or type(input_data["edits"]) is not dict or len(input_data["edits"]) < 1:
+                return flask_restful.abort(400, description="No Edits Made")
+            
+            c = db.connection()
+            if f"frc{season}{event}_pit" not in [e["name"] for e in c.cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
+                return flask.abort(404, f"Table frc{season}{event}_pit Does Not Exist")
+            
+            row = c.cursor().execute("SELECT * FROM frc{}{}_pit WHERE teamNumber={} AND name='{}'".format(season, event, input_data["teamNumber"], input_data["name"])).fetchone()
+            if row is None:
+                return flask_restful.abort(400, description="Pit Scouting Response Not Found For Team: {} By Scouter: {}".format(input_data["teamNumber"], input_data["name"]))
+            if not all(key in row.keys() for key in input_data["edits"]):
+                return flask_restful.abort(400, description=f"Invalid Edit: {key} Not Found")
+            
+            for key, val in input_data["edits"].items():
+                c.cursor().execute("UPDATE frc{}{}_pit SET {}='{}' WHERE teamNumber={} AND name='{}'".format(season, event, key, val, input_data["teamNumber"], input_data["name"]))
+            c.commit()
+            return {"description": "Successfully Edited Pit Scouting Response For Team: {} By Scouter: {}".format(input_data["teamNumber"], input_data["name"])}
     
     class ApiPitCsv(flask_restful.Resource):
         def get(self, season: int, event: str):
