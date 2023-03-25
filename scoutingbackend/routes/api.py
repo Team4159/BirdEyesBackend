@@ -94,7 +94,7 @@ class Api(object):
             if "name" not in input_data or input_data["name"] is None:
                 return flask_restful.abort(400, description="Missing Name")
             if "edits" not in input_data or input_data["edits"] is None or type(input_data["edits"]) is not dict or len(input_data["edits"]) < 1:
-                return flask_restful.abort(400, description="No Edits Made")
+                return flask.Response("No Edits Made", 204)
             
             c = db.connection()
             if f"frc{season}{event}_pit" not in [e["name"] for e in c.cursor().execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
@@ -104,10 +104,9 @@ class Api(object):
             if row is None:
                 return flask_restful.abort(400, description="Pit Scouting Response Not Found For Team: {} By Scouter: {}".format(input_data["teamNumber"], input_data["name"]))
             if not all(key in row.keys() for key in input_data["edits"]):
-                return flask_restful.abort(400, description=f"Invalid Edit: {key} Not Found")
+                return flask_restful.abort(400, description=f"Invalid Edit: One or More Keys Not Found")
             
-            for key, val in input_data["edits"].items():
-                c.cursor().execute("UPDATE frc{}{}_pit SET {}='{}' WHERE teamNumber={} AND name='{}'".format(season, event, key, val, input_data["teamNumber"], input_data["name"]))
+            c.cursor().execute("UPDATE frc{}{}_pit SET {} WHERE teamNumber={} AND name='{}'".format(season, event, ", ".join([f"{k}={v}" for k, v in input_data["edits"].items()]), input_data["teamNumber"], input_data["name"]))
             c.commit()
             return {"description": "Successfully Edited Pit Scouting Response For Team: {} By Scouter: {}".format(input_data["teamNumber"], input_data["name"])}
     
