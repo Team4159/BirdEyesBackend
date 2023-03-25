@@ -140,23 +140,30 @@ def create_app():
             last = lines[-1].strip()
             unassigned.writelines(lines[:-1])
             return flask.Response(json.dumps({"team_number": int(last)}, sort_keys=False), 200, content_type='application/json')
-                
-    @app.post('/<int:season>/events/<string:event_id>/matches/<string:match_id>/stop_scouting/<string:team_number>')
+
+    # Clients should hold the originally assigned team number, and if they start scouting another 
+    # team and later cancel, the original team number should be sent to this endpoint.            
+    @app.post('/<int:season>/events/<string:event_id>/matches/<string:match_id>/stop_scouting/<int:team_number>')
     def stop_scouting(season, event_id, match_id, team_number):
-        master_file_path = "~/teams/{season}-{event_id}-{match_id}-master.txt"
-        unassiged_file_path = "~/teams/{season}-{event_id}-{match_id}-unassigned.txt"
+        master_file_path = f"teams/{season}-{event_id}-{match_id}-master.txt"
+        unassiged_file_path = f"teams/{season}-{event_id}-{match_id}-unassigned.txt"
         if not os.path.exists(master_file_path):
-            return flask.Response('Match doesn\t exist', 404)
+            return flask.Response('Match, season, or event doesn\t exist', 404)
+        
+        with open(master_file_path, 'r') as master, open(unassiged_file_path, 'r') as unassigned:
+            unassigned_teams = [line.strip() for line in unassigned.readlines()]
+            master_list = [line.strip() for line in master.readlines()]
+        
+        if str(team_number) in master_list and str(team_number) not in unassigned_teams:
+            with open(unassiged_file_path, 'w') as unassigned:
+                new_unassigned = unassigned_teams + [str(team_number)]
+                unassigned.writelines([line + '\n' for line in new_unassigned])
+                return flask.Response(f"{team_number} freed", 200)
+        
+        elif str(team_number) in unassigned_teams:
+            return flask.Response(f"{team_number} not freed because it is already unassigned")    
         else:
-            with open(master_file_path, 'r') as master, open(unassiged_file_path, 'r+') as unassigned:
-                unassigned_teams = unassigned.readlines()
-                master_lines = master.readlines()
-                if team_number in master_lines:
-                    new_unassigned = unassigned_teams + [team_number]
-                    unassigned.writelines(new_unassigned)
-                    return flask.Response("{team_number} freed", 200)
-                else:
-                    return flask.Response("{team_number} not added to unassigned list because it is not in the master list")                
+            return flask.Response(f"{team_number} not freed because it is not playing in this match")                
                 
 
     @app.route('/testroute/<int:season>', methods = ['POST'])
