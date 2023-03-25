@@ -63,14 +63,50 @@ def create_app():
     
     @app.get('/<int:season>/events/<string:event_id>/current_matches')
     def current_matches(season, event_id):
-        tba_matches = bluealliance.BlueAlliance.BAEvent().get(season, event_id)
-        sorted_matches = sorted(tba_matches.values(), key=lambda x: x['match_number'])
-        sorted_unfinished_matches = filter(lambda x: x['actual_time'] == None, sorted_matches)
+        tba_matches = bluealliance.BlueAlliance.BAEventMatches().get(season, event_id)
+        sorted_matches = sorted(tba_matches, key=lambda x: x['match_number'])
+        sorted_unfinished_matches = [x for x in sorted_matches if x['actual_time'] == None]
+
+        response_payload = []
+        for match in sorted_unfinished_matches[0:2]:
+            match_key = match['key'].split('_')[1]
+            master_file_path = f"teams/{season}-{event_id}-{match_key}-master.txt"
+            unassiged_file_path = f"teams/{season}-{event_id}-{match_key}-unassigned.txt"
+
+            assigned_teams = set()
         
-        # TODO: Also include which teams are assigned
-        return flask.Response(json.dumps(sorted_unfinished_matches[0:2], sort_keys=False), 200, content_type='application/json')
+            if os.path.exists(master_file_path):
+                with open(master_file_path, 'r') as master, open(unassiged_file_path, 'r') as unassigned:
+                    unassigned_teams = set([x.strip() for x in unassigned.readlines()])
+                    all_teams = set([x.strip() for x in master.readlines()])
+                    assigned_teams = all_teams.difference(unassigned_teams)
+
+            match_payload = {
+                'key': match_key,
+                'teams': []
+            }
+            
+            for team in match['alliances']['blue']['team_keys']:
+                team_name = team.replace('frc', '')
+                match_payload['teams'].append({
+                    'number': int(team_name),
+                    'isAssigned': team_name in assigned_teams,
+                    'color': 'blue'
+                })
+           
+            for team in match['alliances']['red']['team_keys']:
+                team_name = team.replace('frc', '')
+                match_payload['teams'].append({
+                    'number': int(team_name),
+                    'isAssigned': team_name in assigned_teams,
+                    'color': 'red'
+                })
+            
+            response_payload.append(match_payload)
+
+        return flask.Response(json.dumps(response_payload, sort_keys=False), 200, content_type='application/json')
     
-    @app.route('/api/<string:season>/events/<string:event_id>/matches/<string:match_id>/scout', methods = ['POST'])
+    @app.route('/<string:season>/events/<string:event_id>/matches/<string:match_id>/scout', methods = ['POST'])
     def start_scouting(season, event_id, match_id):
         print("scouting started!!!!")
         master_file_path = f"teams/{season}-{event_id}-{match_id}-master.txt"

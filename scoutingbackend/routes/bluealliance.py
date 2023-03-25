@@ -58,6 +58,13 @@ class BlueAlliance(object):
             j = resp.json()
             return {e['key'].split("_")[-1]: e['key'] for e in j}
         
+    class BAEventMatches(flask_restful.Resource):
+        def get(self, season: int, event: str):
+            resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/event/{season}{event}/matches/simple")
+            if not resp.ok:
+                return flask_restful.abort(resp.status_code, description="Passthrough Error")
+            return resp.json()
+        
     class BAMatch(flask_restful.Resource):
         def get(self, season: int, event: str, match: str):
             if match == "*":
