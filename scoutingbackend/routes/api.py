@@ -106,7 +106,7 @@ class Api(object):
             if not all(key in row.keys() for key in input_data["edits"]):
                 return flask_restful.abort(400, description=f"Invalid Edit: One or More Keys Not Found")
             
-            c.cursor().execute("UPDATE frc{}{}_pit SET {} WHERE teamNumber={} AND name='{}'".format(season, event, ", ".join([f"{k}={v}" for k, v in input_data["edits"].items()]), input_data["teamNumber"], input_data["name"]))
+            c.cursor().execute("UPDATE frc{}{}_pit SET {} WHERE teamNumber={} AND name='{}'".format(season, event, ", ".join([f"{k}='{v}'" for k, v in input_data["edits"].items()]), input_data["teamNumber"], input_data["name"]))
             c.commit()
             return {"description": "Successfully Edited Pit Scouting Response For Team: {} By Scouter: {}".format(input_data["teamNumber"], input_data["name"])}
     
