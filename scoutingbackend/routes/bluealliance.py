@@ -6,6 +6,7 @@ import flask_restful
 
 from scoutingbackend.cachingsession import get_with_cache, session
 from scoutingbackend.database import db
+from scoutingbackend.restfulerror import RestfulErrorApi
 
 
 class BlueAlliance(object):
@@ -13,7 +14,7 @@ class BlueAlliance(object):
         session.headers['X-TBA-Auth-Key'] = api_key
         self.bp = flask.Blueprint('ba', __name__, url_prefix='/bluealliance')
         
-        self.rest = flask_restful.Api(self.bp)
+        self.rest = RestfulErrorApi(self.bp)
         self.rest.add_resource(self.BAIndex, '/')
         self.rest.add_resource(self.BASeason, '/<int:season>')
         self.rest.add_resource(self.BAEvent, '/<int:season>/<string:event>')

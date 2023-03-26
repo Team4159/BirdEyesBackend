@@ -10,6 +10,7 @@ import flask_restful
 from scoutingbackend.cachingsession import get_with_cache
 from scoutingbackend.database import db
 from scoutingbackend.schemes import invert_alliance
+from scoutingbackend.restfulerror import RestfulErrorApi
 
 def special_divide(n, d):
     return n/d if d else 0
@@ -17,7 +18,7 @@ def special_divide(n, d):
 class Analysis2023(object):
     def __init__(self) -> None:
         self.bp = flask.Blueprint('an', __name__, url_prefix='/analysis/2023')
-        self.rest = flask_restful.Api(self.bp)
+        self.rest = RestfulErrorApi(self.bp)
         self.rest.add_resource(self.BestDefense, '/<string:event>/bestDefense')
         self.rest.add_resource(self.BestScoring, '/<string:event>/bestScoring')
         self.rest.add_resource(self.BestAuto   , '/<string:event>/bestAuto'   )
@@ -163,11 +164,11 @@ class Analysis2023(object):
                 match = dbdata["match"]
                 dbdata = dict(dbdata)
                 tbadata = tbamatches[match]
-                alliance = [a for a in tbadata["alliances"] if f"frc{dbdata['teamNumber']}" in tbadata["alliances"][a]["team_keys"]]
-                if len(alliance) != 1:
+                alliancelist = [a for a in tbadata["alliances"] if f"frc{dbdata['teamNumber']}" in tbadata["alliances"][a]["team_keys"]]
+                if len(alliancelist) != 1:
                     print(f"[Analysis] Invalid Alliance. Team: {dbdata['teamNumber']} @ Match: {dbdata['match']}")
                     continue
-                alliance: str = alliance[0]
+                alliance: str = alliancelist[0]
                 robotnumber: int = tbadata["alliances"][alliance]["team_keys"].index("frc"+str(dbdata['teamNumber']))+1
                 if robotnumber > 3:
                     print(f"[Analysis] Invalid Robot Index Number. Team: {dbdata['teamNumber']} @ Match: {dbdata['match']}")
