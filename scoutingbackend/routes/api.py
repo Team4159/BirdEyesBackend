@@ -39,9 +39,9 @@ class Api(object):
         
         def put(self, season: int):
             if str(season) not in schemes.MATCH_SCHEME or str(season) not in schemes.PIT_SCHEME:
-                return flask_restful.abort(400, description="Invalid Season!")
+                return flask_restful.abort(400, description="Season form data doesn't exist", tip="Have you tried checking if the backend is up-to-date?")
             if not flask.request.get_data():
-                return flask_restful.abort(400, description="No Event Set!")
+                return flask_restful.abort(400, description="No event number has been sent by the client", tip="the number should be sent in plain text")
             event_name = flask.request.get_data().decode(flask.request.charset)
 
             db.create_tables(season, event_name)
@@ -50,22 +50,24 @@ class Api(object):
     class ApiMSchema(flask_restful.Resource):
         def get(self, season: int):
             if str(season) not in schemes.MATCH_SCHEME:
-                return flask_restful.abort(400, description="Invalid Season!")
+                return flask_restful.abort(400, description="Season form data doesn't exist")
             return flask.Response(json.dumps(schemes.MATCH_SCHEME[str(season)], sort_keys=False), 200, content_type='application/json')
 
     class ApiPSchema(flask_restful.Resource):
         def get(self, season: int):
             if str(season) not in schemes.PIT_SCHEME:
-                return flask_restful.abort(400, description="Invalid Season!")
+                return flask_restful.abort(400, description="Season form data doesn't exist")
             return flask.Response(json.dumps(schemes.PIT_SCHEME[str(season)], sort_keys=False), 200, content_type='application/json')
 
     class ApiPit(flask_restful.Resource):
         def post(self, season: int, event: str):
             input_data = flask.request.get_json(force=True)
             if not input_data:
-                return flask_restful.abort(400)
-            if input_data["teamNumber"] is None or input_data["name"] is None:
-                return flask_restful.abort(400, description="Missing Required Fields")
+                return flask_restful.abort(400, description="No data has been sent, or the sent data is invalid")
+            if input_data["teamNumber"] is None:
+                return flask_restful.abort(400, description="Team Number field is missing", tip="Have you entered the team number correctly?")
+            if input_data["name"] is None:
+                return flask_restful.abort(400, description="Name field is missing", tip="Have you forgotten to set your name?")
             
             c = db.connection()
             if f"frc{season}{event}_pit" not in [e['name'] for e in c.execute("SELECT * FROM sqlite_master WHERE type='table'").fetchall()]:
@@ -80,9 +82,9 @@ class Api(object):
             try:
                 values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_pit {generate_selector(flask.request.args)}").fetchall()
             except OperationalError:
-                return flask_restful.abort(400, description="Invalid Selectors")
+                return flask_restful.abort(400, description="Data queries are invalid", tip="Have you tried to query a column that doesn't exist?")
             if len(values) == 0:
-                return flask_restful.abort(404)
+                return flask_restful.abort(404, description="No values found in the table", tip="Make sure your queries are correct")
             return [dict(scout) for scout in values]
     
     class ApiPitCsv(flask_restful.Resource):
@@ -92,9 +94,9 @@ class Api(object):
             try:
                 values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_pit {generate_selector(flask.request.args)}").fetchall()
             except OperationalError:
-                return flask_restful.abort(400, description="Invalid Selectors")
+                return flask_restful.abort(400, description="Data queries are invalid", tip="Have you tried to query a column that doesn't exist?")
             if len(values) == 0:
-                return flask_restful.abort(404)
+                return flask_restful.abort(404, description="No values found in the table", tip="Make sure your queries are correct")
             out = StringIO()
             writer = csv.DictWriter(out, fieldnames=["name", "teamNumber", *schemes.PIT_SCHEME[str(season)].keys()])
             writer.writeheader()
@@ -127,7 +129,7 @@ class Api(object):
             try:
                 values = db.connection().cursor().execute(f"SELECT * FROM frc{season}{event}_match {generate_selector(flask.request.args)}").fetchall()
             except OperationalError:
-                return flask_restful.abort(400, description="Invalid Selectors")
+                return flask_restful.abort(400, description="Data queries are invalid", tip="Have you tried to query a column that doesn't exist?")
             if not values:
-                return flask_restful.abort(404)
+                return flask_restful.abort(404, description="No values found in the table", tip="Make sure your queries are correct")
             return [dict(scout) for scout in values]
