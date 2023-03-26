@@ -123,6 +123,21 @@ class Analysis2023(object):
                 "both": [t for t in set(single.keys()).intersection(double.keys()) if single[t] <= double[t]*1.5 and double[t] <= single[t]*1.5]
             }
 
+    class AutoBalance(flask_restful.Resource):
+        def get(self, event: str):
+            stats = {}
+            for match in db.connection().cursor().execute(f"SELECT teamNumber, autoDocked, autoEngaged FROM frc2023{event}_match").fetchall():
+                if match["teamNumber"] not in stats:
+                    stats[match["teamNumber"]] = {
+                        "success": 0,
+                        "attempts": 0,
+                    }
+                
+                stats[match["teamNumber"]]["success"] += int(match["autoEngaged"])
+                stats[match["teamNumber"]]["attempts"] += int(match["autoDocked"] or match["autoEngaged"])
+            
+            return {k: (-1 if v["attempts"] == 0 else v["success"] / v["attempts"]) for k, v in stats.items()}
+
     class AutoScoring(flask_restful.Resource):
         def get(self, event: str, team: int):
             cursor = db.connection().cursor()
@@ -198,25 +213,6 @@ class Analysis2023(object):
                     "commentsDisqualified": "frc"+str(dbdata['teamNumber']) in tbadata["alliances"][alliance]["dq_team_keys"]
                 })
             return matches
-    
-    class AutoBalance(flask_restful.Resource):
-        def get(self, event: str):
-            cursor = db.connection().cursor()
-            autobalance_data = cursor.execute(f"SELECT teamNumber, autoDocked, autoEngaged FROM frc2023{event}_match").fetchall()
-            stats = {}
-            
-            for match in autobalance_data:
-                if match["teamNumber"] not in stats:
-                    stats[match["teamNumber"]] = {
-                        "success": 0,
-                        "attempts": 0,
-                    }
-                
-                stats[match["teamNumber"]]["success"] += int(match["autoEngaged"] and match["autoDocked"])
-                stats[match["teamNumber"]]["attempts"] += int(match["autoDocked"])
-            
-            return {k: (-1 if v["attempts"] == 0 else v["success"] / v["attempts"]) for k, v in stats.items()}
-
 
 SCORING_POINTS = {
     "autoConeLow"   : 3,
