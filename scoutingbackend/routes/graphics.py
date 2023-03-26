@@ -50,7 +50,7 @@ class Graphics2023(object):
         def get(self, event: str, team: int):
             matches = db.connection().cursor().execute(f"SELECT * FROM frc2023{event}_match WHERE (teamNumber={team})").fetchall()
             if len(matches) == 0:
-                return flask_restful.abort(404, description="No Matches Found!")
+                return flask_restful.abort(404, description="No matches found for given team")
             matchids = []
             autopts = []
             telepts = []
