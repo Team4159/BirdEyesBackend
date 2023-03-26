@@ -68,7 +68,7 @@ class Analysis2023(object):
                 for row in c.execute(f"select * from {table} where teamNumber={team}").fetchall():
                     resp = get_with_cache(f"https://www.thebluealliance.com/api/v3/match/2023{event}_{row['match']}")
                     if not resp.ok:
-                        return flask.abort(500, "[Analysis] Request Error. "+resp.text)
+                        return flask.Response("Passthrough Error "+resp.text, resp.status_code)
                     matchinfo = resp.json()
                     alliance = [a for a in matchinfo["alliances"] if f"frc{row['teamNumber']}" in matchinfo["alliances"][a]["team_keys"]]
                     if len(alliance) != 1:

@@ -1,3 +1,4 @@
+from http import HTTPStatus
 import io
 import itertools
 import os
@@ -49,9 +50,9 @@ class Graphics2023(object):
     
     class StatGraph(flask_restful.Resource):
         def get(self, event: str, team: int):
-            matches = db.connection().cursor().execute(f"SELECT * FROM frc2023{event}_match WHERE (teamNumber={team})").fetchall()
+            matches = db.connection().cursor().execute(f"SELECT * FROM frc2023{event}_match WHERE teamNumber='{team}'").fetchall()
             if len(matches) == 0:
-                return flask_restful.abort(404, description="No matches found for given team")
+                return flask.Response("No Values Found", HTTPStatus.NOT_FOUND)
             matchids = []
             autopts = []
             telepts = []
