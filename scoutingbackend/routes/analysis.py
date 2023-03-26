@@ -27,6 +27,7 @@ class Analysis2023(object):
 
         self.rest.add_resource(self.PickupLocations, '/<string:event>/pickups')
         self.rest.add_resource(self.AutoScoring, '/<string:event>/<int:team>/autoScoring')
+        self.rest.add_resource(self.AutoBalance, '/<string:event>/autoBalance')
         self.rest.add_resource(self.SaturatedEvent, '/<string:event>')
 
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
@@ -197,6 +198,25 @@ class Analysis2023(object):
                     "commentsDisqualified": "frc"+str(dbdata['teamNumber']) in tbadata["alliances"][alliance]["dq_team_keys"]
                 })
             return matches
+    
+    class AutoBalance(flask_restful.Resource):
+        def get(self, event: str):
+            cursor = db.connection().cursor()
+            autobalance_data = cursor.execute(f"SELECT teamNumber, autoDocked, autoEngaged FROM frc2023{event}_match").fetchall()
+            stats = {}
+            
+            for match in autobalance_data:
+                if match["teamNumber"] not in stats:
+                    stats[match["teamNumber"]] = {
+                        "success": 0,
+                        "attempts": 0,
+                    }
+                
+                stats[match["teamNumber"]]["success"] += int(match["autoEngaged"] and match["autoDocked"])
+                stats[match["teamNumber"]]["attempts"] += int(match["autoDocked"])
+            
+            return {k: (-1 if v["attempts"] == 0 else v["success"] / v["attempts"]) for k, v in stats.items()}
+
 
 SCORING_POINTS = {
     "autoConeLow"   : 3,
