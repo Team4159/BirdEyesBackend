@@ -10,6 +10,7 @@ import flask_restful
 
 from scoutingbackend.database import db
 from scoutingbackend.routes.analysis import total_points
+from scoutingbackend.restfulerror import RestfulErrorApi
 
 pyplot.ioff()
 
@@ -20,7 +21,7 @@ class Graphics2023(object):
             Graphics2023.cache = pathlib.Path(cache_directory)
         self.bp = flask.Blueprint('graphics', __name__, url_prefix='/graphics/2023')
 
-        self.rest = flask_restful.Api(self.bp)
+        self.rest = RestfulErrorApi(self.bp)
         self.rest.add_resource(self.JojoWheel, '/<string:event>/<int:team>/wheel')
         self.rest.add_resource(self.StatGraph, '/<string:event>/<int:team>/statGraph')
 
@@ -50,7 +51,7 @@ class Graphics2023(object):
         def get(self, event: str, team: int):
             matches = db.connection().cursor().execute(f"SELECT * FROM frc2023{event}_match WHERE (teamNumber={team})").fetchall()
             if len(matches) == 0:
-                return flask_restful.abort(404, description="No Matches Found!")
+                return flask_restful.abort(404, description="No matches found for given team")
             matchids = []
             autopts = []
             telepts = []

@@ -10,6 +10,7 @@ import flask_restful
 from scoutingbackend.cachingsession import get_with_cache
 from scoutingbackend.database import db
 from scoutingbackend.schemes import invert_alliance
+from scoutingbackend.restfulerror import RestfulErrorApi
 
 def special_divide(n, d):
     return n/d if d else 0
@@ -17,7 +18,7 @@ def special_divide(n, d):
 class Analysis2023(object):
     def __init__(self) -> None:
         self.bp = flask.Blueprint('an', __name__, url_prefix='/analysis/2023')
-        self.rest = flask_restful.Api(self.bp)
+        self.rest = RestfulErrorApi(self.bp)
         self.rest.add_resource(self.BestDefense, '/<string:event>/bestDefense')
         self.rest.add_resource(self.BestScoring, '/<string:event>/bestScoring')
         self.rest.add_resource(self.BestAuto   , '/<string:event>/bestAuto'   )
@@ -106,15 +107,15 @@ class Analysis2023(object):
             return Analysis2023.ranking_wrapper(event, 'endgame')
     
     class PickupLocations(flask_restful.Resource):
-        def get(self, event: str, team: int):
+        def get(self, event: str):
             single = {}
             double = {}
-            for row in db.connection().cursor().execute(f"select * from frc2023{event}_match where teamNumber={team}").fetchall():
+            for row in db.connection().cursor().execute(f"select * from frc2023{event}_match").fetchall():
                 tn = row["teamNumber"]
                 if tn not in single: single[tn] = 0
                 if tn not in double: double[tn] = 0
-                if row["teleopIntakessingle"]: single[tn]+=1
-                if row["teleopIntakesdouble"]: double[tn]+=1
+                if row["teleopIntakesSingle"]: single[tn]+=1
+                if row["teleopIntakesDouble"]: double[tn]+=1
             return {
                 "single": [t for t in single.keys() if single[t] > double[t]*1.5],
                 "double": [t for t in double.keys() if double[t] > single[t]*1.5],
@@ -130,14 +131,14 @@ class Analysis2023(object):
             cone_low_total = cone_mid_total = cone_high_total = cone_percentage_total = cube_low_total = cube_mid_total = cube_high_total = cube_percentage_total = score_total = 0
 
             for row in matches:
-                cone_low_total += row["autoConelow"]
-                cone_mid_total += row["autoConemid"]
-                cone_high_total += row["autoConehigh"]
-                cone_percentage_total += (row["autoConelow"] + row["autoConemid"] + row["autoConehigh"]) / (row["autoConeAttempts"] + row["autoConelow"] + row["autoConemid"] + row["autoConehigh"])
-                cube_low_total += row["autoCubelow"]
-                cube_mid_total += row["autoCubemid"]
-                cube_high_total += row["autoCubehigh"]
-                cube_percentage_total += (row["autoCubelow"] + row["autoCubemid"] + row["autoCubehigh"]) / (row["autoCubeAttempts"] + row["autoCubelow"] + row["autoCubemid"] + row["autoCubehigh"])
+                cone_low_total += row["autoConeLow"]
+                cone_mid_total += row["autoConeMid"]
+                cone_high_total += row["autoConeHigh"]
+                cone_percentage_total += (row["autoConeLow"] + row["autoConeMid"] + row["autoConeHigh"]) / (row["autoConeAttempts"] + row["autoConeLow"] + row["autoConeMid"] + row["autoConeHigh"])
+                cube_low_total += row["autoCubeLow"]
+                cube_mid_total += row["autoCubeMid"]
+                cube_high_total += row["autoCubeHigh"]
+                cube_percentage_total += (row["autoCubeLow"] + row["autoCubeMid"] + row["autoCubeHigh"]) / (row["autoCubeAttempts"] + row["autoCubeLow"] + row["autoCubeMid"] + row["autoCubeHigh"])
                 score_total += int(row["autoMobility"]) * SCORING_POINTS["autoMobility"] + int(row["autoDocked"]) * SCORING_POINTS["autoDocked"] + int(row["autoEngaged"]) * SCORING_POINTS["autoEngaged"]
             score_total += total_points(row, "auto") #idk if this might cause an error but my type checker marks it as red might want to take a look #type:ignore
 
@@ -163,11 +164,11 @@ class Analysis2023(object):
                 match = dbdata["match"]
                 dbdata = dict(dbdata)
                 tbadata = tbamatches[match]
-                alliance = [a for a in tbadata["alliances"] if f"frc{dbdata['teamNumber']}" in tbadata["alliances"][a]["team_keys"]]
-                if len(alliance) != 1:
+                alliancelist = [a for a in tbadata["alliances"] if f"frc{dbdata['teamNumber']}" in tbadata["alliances"][a]["team_keys"]]
+                if len(alliancelist) != 1:
                     print(f"[Analysis] Invalid Alliance. Team: {dbdata['teamNumber']} @ Match: {dbdata['match']}")
                     continue
-                alliance: str = alliance[0]
+                alliance: str = alliancelist[0]
                 robotnumber: int = tbadata["alliances"][alliance]["team_keys"].index("frc"+str(dbdata['teamNumber']))+1
                 if robotnumber > 3:
                     print(f"[Analysis] Invalid Robot Index Number. Team: {dbdata['teamNumber']} @ Match: {dbdata['match']}")
