@@ -1,8 +1,11 @@
 from pathlib import Path
 import pathlib
+import os
+import json
 
 import flask
 import flask_cors
+
 
 from scoutingbackend.database import db
 from scoutingbackend.routes import api, bluealliance, analysis, graphics
@@ -58,4 +61,100 @@ def create_app():
     def admin():
         return flask.send_file('static/admin.html')
     
+    @app.get('/<int:season>/events/<string:event_id>/current_matches')
+    def current_matches(season, event_id):
+        tba_matches = bluealliance.BlueAlliance.BAEventMatches().get(season, event_id)
+        sorted_matches = sorted(tba_matches, key=lambda x: x['match_number'])
+        sorted_unfinished_matches = [x for x in sorted_matches if x['actual_time'] == None]
+
+        response_payload = []
+        for match in sorted_unfinished_matches[0:2]:
+            match_key = match['key'].split('_')[1]
+            master_file_path = f"teams/{season}-{event_id}-{match_key}-master.txt"
+            unassiged_file_path = f"teams/{season}-{event_id}-{match_key}-unassigned.txt"
+
+            assigned_teams = set()
+        
+            if os.path.exists(master_file_path):
+                with open(master_file_path, 'r') as master, open(unassiged_file_path, 'r') as unassigned:
+                    unassigned_teams = set([x.strip() for x in unassigned.readlines()])
+                    all_teams = set([x.strip() for x in master.readlines()])
+                    assigned_teams = all_teams.difference(unassigned_teams)
+
+            match_payload = {
+                'key': match_key,
+                'teams': []
+            }
+            
+            for team in match['alliances']['blue']['team_keys']:
+                team_name = team.replace('frc', '')
+                match_payload['teams'].append({
+                    'number': int(team_name),
+                    'isAssigned': team_name in assigned_teams,
+                    'color': 'blue'
+                })
+           
+            for team in match['alliances']['red']['team_keys']:
+                team_name = team.replace('frc', '')
+                match_payload['teams'].append({
+                    'number': int(team_name),
+                    'isAssigned': team_name in assigned_teams,
+                    'color': 'red'
+                })
+            
+            response_payload.append(match_payload)
+
+        return flask.Response(json.dumps(response_payload, sort_keys=False), 200, content_type='application/json')
+    
+    @app.route('/<string:season>/events/<string:event_id>/matches/<string:match_id>/scout', methods = ['POST'])
+    def start_scouting(season, event_id, match_id):
+        master_file_path = f"teams/{season}-{event_id}-{match_id}-master.txt"
+        unassiged_file_path = f"teams/{season}-{event_id}-{match_id}-unassigned.txt"
+        
+        if not os.path.isdir('teams'):
+            os.makedirs('teams')
+        
+        if not os.path.exists(master_file_path):
+            tba_match = bluealliance.BlueAlliance.BAMatch().get(season, event_id, match_id)
+            tba_match_participants = tba_match.keys()
+            tba_match_participants_string = '\n'.join(tba_match_participants)
+            
+            with open(master_file_path, 'w') as master, open(unassiged_file_path, 'w') as unassigned:
+                master.write(tba_match_participants_string)
+                unassigned.write(tba_match_participants_string)
+
+        with open(unassiged_file_path, 'r') as unassigned:
+            lines = unassigned.readlines()
+            if len(lines) == 0:
+                return flask.Response('All teams assigned.', 404)
+            
+        with open(unassiged_file_path, 'w') as unassigned:
+            last = lines[-1].strip()
+            unassigned.writelines(lines[:-1])
+            return flask.Response(json.dumps({"team_number": int(last)}, sort_keys=False), 200, content_type='application/json')
+
+    # Clients should hold the originally assigned team number, and if they start scouting another 
+    # team and later cancel, the original team number should be sent to this endpoint.            
+    @app.post('/<int:season>/events/<string:event_id>/matches/<string:match_id>/stop_scouting/<int:team_number>')
+    def stop_scouting(season, event_id, match_id, team_number):
+        master_file_path = f"teams/{season}-{event_id}-{match_id}-master.txt"
+        unassiged_file_path = f"teams/{season}-{event_id}-{match_id}-unassigned.txt"
+        if not os.path.exists(master_file_path):
+            return flask.Response('Match, season, or event doesn\t exist', 404)
+        
+        with open(master_file_path, 'r') as master, open(unassiged_file_path, 'r') as unassigned:
+            unassigned_teams = [line.strip() for line in unassigned.readlines()]
+            master_list = [line.strip() for line in master.readlines()]
+        
+        if str(team_number) in master_list and str(team_number) not in unassigned_teams:
+            with open(unassiged_file_path, 'w') as unassigned:
+                new_unassigned = unassigned_teams + [str(team_number)]
+                unassigned.writelines([line + '\n' for line in new_unassigned])
+                return flask.Response(f"{team_number} freed", 200)
+        
+        elif str(team_number) in unassigned_teams:
+            return flask.Response(f"{team_number} not freed because it is already unassigned")    
+        else:
+            return flask.Response(f"{team_number} not freed because it is not playing in this match")                
+                
     return app
