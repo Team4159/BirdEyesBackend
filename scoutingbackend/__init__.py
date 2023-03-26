@@ -108,32 +108,24 @@ def create_app():
     
     @app.route('/<string:season>/events/<string:event_id>/matches/<string:match_id>/scout', methods = ['POST'])
     def start_scouting(season, event_id, match_id):
-        print("scouting started!!!!")
         master_file_path = f"teams/{season}-{event_id}-{match_id}-master.txt"
         unassiged_file_path = f"teams/{season}-{event_id}-{match_id}-unassigned.txt"
         
         if not os.path.isdir('teams'):
-            print('making dir')
             os.makedirs('teams')
         
         if not os.path.exists(master_file_path):
-            print('filling files')
             tba_match = bluealliance.BlueAlliance.BAMatch().get(season, event_id, match_id)
             tba_match_participants = tba_match.keys()
             tba_match_participants_string = '\n'.join(tba_match_participants)
-            print('got participants', tba_match_participants_string)
             
             with open(master_file_path, 'w') as master, open(unassiged_file_path, 'w') as unassigned:
                 master.write(tba_match_participants_string)
                 unassigned.write(tba_match_participants_string)
-                print('finished writing to files')
 
         with open(unassiged_file_path, 'r') as unassigned:
-            print('start reading')
             lines = unassigned.readlines()
-            print(lines)
             if len(lines) == 0:
-                print('no lines')
                 return flask.Response('All teams assigned.', 404)
             
         with open(unassiged_file_path, 'w') as unassigned:
@@ -165,11 +157,4 @@ def create_app():
         else:
             return flask.Response(f"{team_number} not freed because it is not playing in this match")                
                 
-
-    @app.route('/testroute/<int:season>', methods = ['POST'])
-    def test_route(season):
-        print(f"hit test {season}")
-        return flask.Response("you did it", 200)
-    
-    print(app.url_map)
     return app
