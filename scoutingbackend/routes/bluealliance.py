@@ -81,7 +81,6 @@ class BlueAlliance(object):
                 else:
                     return {team_code[3:]: "*" for team_code in resp.json()}
             uri = f"https://www.thebluealliance.com/api/v3/match/{season}{event}_{match}/simple"
-            print(uri)
             resp = get_with_cache(uri)
             if not resp.ok:
                 return flask_restful.abort(resp.status_code, description="Passthrough Error")
