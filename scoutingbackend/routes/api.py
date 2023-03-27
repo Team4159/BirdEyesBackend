@@ -73,7 +73,7 @@ class Api(object):
             if ("teamNumber" not in input_data or input_data["teamNumber"] is None) or ("name" not in input_data or input_data["name"] is None):
                 return flask.Response("Missing teamNumber / name", HTTPStatus.BAD_REQUEST, mimetype="text/plain")
             if c.execute(f"SELECT name FROM frc{season}{event}_pit WHERE name='{input_data['name']}' AND teamNumber='{input_data['teamNumber']}'").fetchone() is not None:
-                return flask.Response("Duplicate Submission (Use PATCH)", HTTPStatus.METHOD_NOT_ALLOWED, mimetype="text/plain")
+                return flask.Response("Duplicate Submission", HTTPStatus.METHOD_NOT_ALLOWED, mimetype="text/plain", headers={"Allow": "PATCH"})
             
             c.cursor().execute(f"INSERT INTO frc{season}{event}_pit ({', '.join(input_data.keys())}) VALUES ({('?, '*len(input_data)).rstrip(', ')})", tuple(input_data.values()))
             c.commit()
@@ -101,13 +101,11 @@ class Api(object):
             if ("teamNumber" not in input_data or input_data["teamNumber"] is None) or ("name" not in input_data or input_data["name"] is None):
                 return flask.Response("Missing teamNumber / name", HTTPStatus.BAD_REQUEST, mimetype="text/plain")
             
-            row = c.cursor().execute(f"SELECT * FROM frc{season}{event}_pit WHERE teamNumber={input_data['teamNumber']} AND name='{input_data['name']}'").fetchone()
-            if row is None:
-                return flask.Response("Nothing to Edit", HTTPStatus.NOT_FOUND)
-            if not all(key in row.keys() for key in input_data["edits"]): # What is this?
-                return flask_restful.abort(400, description=f"Invalid Edit: One or More Keys Not Found")
+            if c.execute(f"SELECT * FROM frc{season}{event}_pit WHERE teamNumber={input_data['teamNumber']} AND name='{input_data['name']}'").fetchone() is None:
+                return flask.Response("Nothing to Edit", HTTPStatus.METHOD_NOT_ALLOWED, mimetype="text/plain", headers={"Allow": "POST"})
             
-            c.cursor().execute("UPDATE frc{}{}_pit SET {} WHERE teamNumber={} AND name='{}'".format(season, event, ", ".join([f"{k}='{v}'" for k, v in input_data["edits"].items()]), input_data["teamNumber"], input_data["name"]))
+            body = ', '.join([f"{k}='{v}'" for k, v in input_data.items() if k != "teamNumber" and k != "name"])
+            c.cursor().execute(f"UPDATE frc{season}{event}_pit SET {body} WHERE teamNumber={input_data['teamNumber']} AND name='{input_data['name']}'")
             c.commit()
             return flask.Response(status=HTTPStatus.OK)
     
