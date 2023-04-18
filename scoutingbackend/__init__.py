@@ -32,30 +32,12 @@ def create_app():
         a.register(app) # /api/
 
         # if you want to access bluealliance functions (WARNING: may work slightly funny), you can now use current_app.api/current_app.bluealliance.xyz
-        app.api: api.Api = a #type:ignore
-        app.bluealliance: bluealliance.BlueAlliance = ba #type:ignore
-        app.gr = g
+        app.api: api.Api = a
+        app.bluealliance: bluealliance.BlueAlliance = ba
     
     pathlib.Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     
     @app.route('/')
     def test(): return "BirdsEye Scouting Server Online!"
-    
-    #example for calling routes as functions from other routes
-    @app.route('/TEST')
-    def testt():
-        #override the request ignoreDate with this one
-        #if unset, season.get would use whatever is in `url/TEST?ignoreDate=foo` or the function's default
-        flask.g.args = {'ignoreDate': 'true'}
-        o = {'a': flask.current_app.bluealliance.season.get(2023)} #type:ignore
-        flask.g.args = {'teamNumber': 4158}
-        o['b'] = flask.current_app.api.pit.get(2023, 'casf') #type:ignore
-        flask.g.args = {'teamNumber': 4159}
-        o['c'] = flask.current_app.api.pit.get(2023, 'casf') #type:ignore
-        return o
-
-    @app.route('/admin')
-    def admin():
-        return flask.send_file('static/admin.html')
     
     return app

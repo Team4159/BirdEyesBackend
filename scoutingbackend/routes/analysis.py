@@ -36,19 +36,18 @@ class Analysis2023(object):
     @staticmethod
     def ranking_wrapper(event: str, key: typing.Optional[str], friendly_key: typing.Optional[str] = None):
         c = db.connection().cursor()
-        c.row_factory = lambda cur, row: row[0]
+        c.row_factory = lambda _, row: row[0]
         team_scores_unsorted = {int(team): Analysis2023.get_point_values(event, team, key) for team in set(c.execute(f"select (teamNumber) from frc2023{event}_match").fetchall())} #set to remove dupes
         c.row_factory = sqlite3.Row #type:ignore
         team_scores = OrderedDict(sorted(team_scores_unsorted.items(), key=lambda teaminfo: teaminfo[1], reverse=True))
         if flask.request.args.get("csv", "false") == "false":
             return team_scores
-        else:
-            out = io.StringIO()
-            friendly_name = f"Average Score ({key})" if not friendly_key else friendly_key
-            writer = csv.DictWriter(out, fieldnames=["Team Number", friendly_name])
-            writer.writeheader()
-            writer.writerows([{"Team Number": team, friendly_name: score} for (team, score) in team_scores.items()])
-            return flask.Response(out.getvalue(), 200, mimetype='text/csv')
+        out = io.StringIO()
+        friendly_name = f"Average Score ({key})" if not friendly_key else friendly_key
+        writer = csv.DictWriter(out, fieldnames=["Team Number", friendly_name])
+        writer.writeheader()
+        writer.writerows([{"Team Number": team, friendly_name: score} for (team, score) in team_scores.items()])
+        return flask.Response(out.getvalue(), 200, mimetype='text/csv')
     
     @staticmethod
     def get_point_values(event_key: str, team: int, value_type: typing.Optional[str]):
@@ -186,7 +185,7 @@ class Analysis2023(object):
                     continue
                 alliance: str = alliancelist[0]
                 robotnumber: int = tbadata["alliances"][alliance]["team_keys"].index("frc"+str(dbdata['teamNumber']))+1
-                if robotnumber > 3:
+                if 0 >= robotnumber > 3:
                     print(f"[Analysis] Invalid Robot Index Number. Team: {dbdata['teamNumber']} @ Match: {dbdata['match']}")
                     continue
                 alliancescores = tbadata["score_breakdown"][alliance]

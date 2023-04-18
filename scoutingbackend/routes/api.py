@@ -24,12 +24,9 @@ class Api(object):
         self.rest.add_resource(self.ApiPit, '/<int:season>/<string:event>/pit')
         self.rest.add_resource(self.ApiPitCsv, '/<int:season>/<string:event>/pit/csv')
         self.rest.add_resource(self.ApiMatch, '/<int:season>/<string:event>/match')
-        
-        self.tables = self.Tables()
-        self.match_schema = self.ApiMSchema()
-        self.pit_schema = self.ApiPSchema()
-        self.match = self.ApiMatch()
-        self.pit = self.ApiPit()
+        self.rest.add_resource(self.ApiCompletion, '/<int:season>/<string:event>/completion')
+
+        self.pit = self.ApiPit
 
     def register(self, app: typing.Union[flask.Flask, flask.Blueprint]):
         app.register_blueprint(self.bp)
@@ -138,6 +135,8 @@ class Api(object):
                 return flask.Response("Missing teamNumber / match / name", HTTPStatus.BAD_REQUEST, mimetype="text/plain")
             if c.execute(f"SELECT name FROM frc{season}{event}_match WHERE match='{input_data['match']}' AND teamNumber='{input_data['teamNumber']}'").fetchone() is not None:
                 return flask.Response("Duplicate Submission", HTTPStatus.CONFLICT, mimetype="text/plain")
+            if not input_data['teamNumber'] in flask.current_app.bluealliance.match.get(season, event, input_data['match']):
+                return flask.Response("Invalid teamNumber / match", HTTPStatus.BAD_REQUEST, mimetype="text/plain")
 
             submit_data = {}
             for key, value in input_data.items():
@@ -156,9 +155,25 @@ class Api(object):
             if c.execute(f"SELECT * FROM sqlite_master WHERE type='table' AND name='frc{season}{event}_match'").fetchone() is None:
                 return flask.Response("Event Table does not exist", HTTPStatus.NOT_FOUND)
             try:
-                values = c.execute(f"SELECT * FROM frc{season}{event}_pnatch {generate_selector(flask.request.args)}").fetchall()
+                values = c.execute(f"SELECT * FROM frc{season}{event}_match {generate_selector(flask.request.args)}").fetchall()
             except OperationalError:
                 return flask.Response("Invalid Selectors", HTTPStatus.BAD_REQUEST)
             if len(values) == 0:
                 return flask.Response("No Values Found", HTTPStatus.NOT_FOUND)
             return [dict(scout) for scout in values]
+    
+    class ApiCompletion(flask_restful.Resource):
+        def get(self, season: int, event: str):
+            c = db.connection().cursor()
+            if c.execute(f"SELECT * FROM sqlite_master WHERE type='table' AND name='frc{season}{event}_match'").fetchone() is None:
+                return flask.Response("Event Table does not exist", HTTPStatus.NOT_FOUND)
+            allmatches = flask.request.args.get("all") == "true"
+            flask.g.args = {"ignoreDate": "false"}
+            matches: typing.Dict[str, str] = flask.current_app.bluealliance.event.get(season, event)
+            total = len([matchk for matchk in matches.keys() if allmatches or matchk.startswith("qm")])*6
+            try:
+                values = c.execute(f"SELECT * FROM frc{season}{event}_match").fetchall()
+                filled = len(set([f"{r['match']}_{r['teamNumber']}" for r in values if allmatches or r['match'].startswith("qm")]))
+            except OperationalError:
+                return flask.Response(status=HTTPStatus.BAD_REQUEST)
+            return {"total": total, "filled": filled, "percent": "{0:.0%}".format(filled/total) if total > 0 else -1}
